@@ -317,6 +317,21 @@ tbody tr:hover td {
   font-weight: 700;
 }
 
+.small.icon-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
 .small.danger {
   color: var(--danger);
   border-color: #efc5c5;

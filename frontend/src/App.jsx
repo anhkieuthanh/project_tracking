@@ -48,6 +48,22 @@ const tabItems = [
   { id: 'ai-dashboard', label: 'Báo cáo AI' }
 ];
 
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="icon-svg" aria-hidden="true">
+      <path d="M3 17.25V21h3.75L17.8 9.95l-3.75-3.75L3 17.25zm14.71-9.04a1 1 0 0 0 0-1.41l-1.5-1.5a1 1 0 0 0-1.41 0l-1.13 1.13 3.75 3.75 1.29-1.97z" />
+    </svg>
+  );
+}
+
+function DeleteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="icon-svg" aria-hidden="true">
+      <path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7zm3-4h6l1 2h4v2H4V5h4l1-2z" />
+    </svg>
+  );
+}
+
 function normalizeTaskForForm(task) {
   return {
     title: task.title,
@@ -511,11 +527,11 @@ export default function App() {
                       <td>{task.note || '-'}</td>
                       <td>
                         <div className="row-actions">
-                          <button type="button" className="small" onClick={() => handleEdit(task)}>
-                            Sửa
+                          <button type="button" className="small icon-btn" aria-label="Sửa" title="Sửa" onClick={() => handleEdit(task)}>
+                            <EditIcon />
                           </button>
-                          <button type="button" className="small danger" onClick={() => handleDelete(task.id)}>
-                            Xóa
+                          <button type="button" className="small danger icon-btn" aria-label="Xóa" title="Xóa" onClick={() => handleDelete(task.id)}>
+                            <DeleteIcon />
                           </button>
                         </div>
                       </td>
@@ -790,11 +806,11 @@ export default function App() {
                       </td>
                       <td>
                         <div className="row-actions">
-                          <button type="button" className="small" onClick={() => handleAiEdit(project)}>
-                            Sửa
+                          <button type="button" className="small icon-btn" aria-label="Sửa" title="Sửa" onClick={() => handleAiEdit(project)}>
+                            <EditIcon />
                           </button>
-                          <button type="button" className="small danger" onClick={() => handleAiDelete(project.id)}>
-                            Xóa
+                          <button type="button" className="small danger icon-btn" aria-label="Xóa" title="Xóa" onClick={() => handleAiDelete(project.id)}>
+                            <DeleteIcon />
                           </button>
                         </div>
                       </td>
@@ -848,11 +864,11 @@ export default function App() {
                       </td>
                       <td>
                         <div className="row-actions">
-                          <button type="button" className="small" onClick={() => handleAiEdit(project)}>
-                            Sửa
+                          <button type="button" className="small icon-btn" aria-label="Sửa" title="Sửa" onClick={() => handleAiEdit(project)}>
+                            <EditIcon />
                           </button>
-                          <button type="button" className="small danger" onClick={() => handleAiDelete(project.id)}>
-                            Xóa
+                          <button type="button" className="small danger icon-btn" aria-label="Xóa" title="Xóa" onClick={() => handleAiDelete(project.id)}>
+                            <DeleteIcon />
                           </button>
                         </div>
                       </td>
