@@ -11,9 +11,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/project-tracking-api': {
+      '/project-tracking/_api': {
         target: 'http://localhost:4000',
-        rewrite: (path) => path.replace(/^\/project-tracking-api/, '')
+        rewrite: (path) => path.replace(/^\/project-tracking\/_api/, '')
       }
     }
   }

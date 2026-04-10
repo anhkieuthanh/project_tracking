@@ -6,13 +6,13 @@ describe('App', () => {
   beforeEach(() => {
     global.fetch = vi.fn((url) => {
       if (
-        url === '/project-tracking-api/tasks' ||
-        url === '/project-tracking-api/reports' ||
-        url === '/project-tracking-api/employees' ||
-        url === '/project-tracking-api/ai-projects' ||
-        url === '/project-tracking-api/ai-projects/dashboard/summary'
+        url === '/project-tracking/_api/tasks' ||
+        url === '/project-tracking/_api/reports' ||
+        url === '/project-tracking/_api/employees' ||
+        url === '/project-tracking/_api/ai-projects' ||
+        url === '/project-tracking/_api/ai-projects/dashboard/summary'
       ) {
-        if (url === '/project-tracking-api/ai-projects/dashboard/summary') {
+        if (url === '/project-tracking/_api/ai-projects/dashboard/summary') {
           return Promise.resolve({
             ok: true,
             status: 200,
@@ -53,11 +53,11 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Báo cáo AI' })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/project-tracking-api/tasks');
-      expect(global.fetch).toHaveBeenCalledWith('/project-tracking-api/reports');
-      expect(global.fetch).toHaveBeenCalledWith('/project-tracking-api/employees');
-      expect(global.fetch).toHaveBeenCalledWith('/project-tracking-api/ai-projects');
-      expect(global.fetch).toHaveBeenCalledWith('/project-tracking-api/ai-projects/dashboard/summary');
+      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/tasks');
+      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/reports');
+      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/employees');
+      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/ai-projects');
+      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/ai-projects/dashboard/summary');
     });
   });
 });

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || '/project-tracking-api';
+const API_BASE = import.meta.env.VITE_API_BASE || '/project-tracking/_api';
 
 function apiPath(path) {
   return `${API_BASE}${path}`;
