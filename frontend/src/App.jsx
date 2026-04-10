@@ -98,6 +98,27 @@ function formatDate(value) {
   return String(value).slice(0, 10);
 }
 
+function getPriorityClass(priority) {
+  if (priority === 'Cao') return 'priority-high';
+  if (priority === 'Trung bình') return 'priority-medium';
+  return 'priority-low';
+}
+
+function getTaskStatusClass(status) {
+  if (status === 'Hoàn thành') return 'status-done';
+  if (status === 'Đang làm') return 'status-progress';
+  if (status === 'Tạm dừng') return 'status-paused';
+  return 'status-todo';
+}
+
+function getAiStatusClass(status) {
+  if (status === 'Hoàn thành') return 'status-done';
+  if (status === 'Đang triển khai') return 'status-progress';
+  if (status === 'Đã duyệt') return 'status-approved';
+  if (status === 'Tạm dừng') return 'status-paused';
+  return 'status-proposal';
+}
+
 export default function App() {
   const [tasks, setTasks] = useState([]);
   const [reports, setReports] = useState([]);
@@ -521,8 +542,12 @@ export default function App() {
                       <td>{index + 1}</td>
                       <td>{task.title}</td>
                       <td>{formatDate(task.completed_date)}</td>
-                      <td>{task.priority}</td>
-                      <td>{task.status}</td>
+                      <td>
+                        <span className={`badge ${getPriorityClass(task.priority)}`}>{task.priority}</span>
+                      </td>
+                      <td>
+                        <span className={`badge ${getTaskStatusClass(task.status)}`}>{task.status}</span>
+                      </td>
                       <td>{task.category}</td>
                       <td>{task.note || '-'}</td>
                       <td>
@@ -612,8 +637,12 @@ export default function App() {
                               <td>{index + 1}</td>
                               <td>{task.title}</td>
                               <td>{formatDate(task.completed_date)}</td>
-                              <td>{task.priority}</td>
-                              <td>{task.status}</td>
+                              <td>
+                                <span className={`badge ${getPriorityClass(task.priority)}`}>{task.priority}</span>
+                              </td>
+                              <td>
+                                <span className={`badge ${getTaskStatusClass(task.status)}`}>{task.status}</span>
+                              </td>
                               <td>{task.category}</td>
                               <td>{task.note || '-'}</td>
                             </tr>
@@ -794,7 +823,9 @@ export default function App() {
                       <td>{project.proposer_name}</td>
                       <td>{project.description}</td>
                       <td>{project.employee_name}</td>
-                      <td>{project.status}</td>
+                      <td>
+                        <span className={`badge ${getAiStatusClass(project.status)}`}>{project.status}</span>
+                      </td>
                       <td>
                         Dự kiến: {project.estimated_days ?? '-'}<br />
                         Thực tế: {project.actual_days ?? '-'}
@@ -852,7 +883,9 @@ export default function App() {
                       <td>{project.proposer_name}</td>
                       <td>{project.description}</td>
                       <td>{project.employee_name}</td>
-                      <td>{project.status}</td>
+                      <td>
+                        <span className={`badge ${getAiStatusClass(project.status)}`}>{project.status}</span>
+                      </td>
                       <td>
                         Dự kiến: {project.estimated_days ?? '-'}<br />
                         Thực tế: {project.actual_days ?? '-'}

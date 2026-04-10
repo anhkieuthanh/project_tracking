@@ -338,6 +338,68 @@ tbody tr:hover td {
   background: #fff5f5;
 }
 
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.priority-high {
+  color: #a32121;
+  background: #ffecec;
+  border-color: #ffc9c9;
+}
+
+.priority-medium {
+  color: #8a5a05;
+  background: #fff6e8;
+  border-color: #f8ddb3;
+}
+
+.priority-low {
+  color: #18643d;
+  background: #eaf9f0;
+  border-color: #c8ebd7;
+}
+
+.status-todo,
+.status-proposal {
+  color: #334b66;
+  background: #eef3f8;
+  border-color: #d5e0eb;
+}
+
+.status-progress {
+  color: #144f9c;
+  background: #eaf2ff;
+  border-color: #c6d9ff;
+}
+
+.status-approved {
+  color: #0d6b55;
+  background: #e8f9f3;
+  border-color: #c1eedf;
+}
+
+.status-done {
+  color: #0c7d49;
+  background: #e8f8ef;
+  border-color: #bfebd1;
+}
+
+.status-paused {
+  color: #8b5216;
+  background: #fff3e4;
+  border-color: #f5d8b2;
+}
+
 .notice {
   margin: 0;
   border-radius: 12px;
