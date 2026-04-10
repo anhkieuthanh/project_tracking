@@ -1,3 +1,9 @@
+const API_BASE = import.meta.env.VITE_API_BASE || '/project-tracking-api';
+
+function apiPath(path) {
+  return `${API_BASE}${path}`;
+}
+
 async function parseResponse(response) {
   if (response.ok) {
     if (response.status === 204) {
@@ -18,12 +24,12 @@ async function parseResponse(response) {
 }
 
 export async function getTasks() {
-  const response = await fetch('/tasks');
+  const response = await fetch(apiPath('/tasks'));
   return parseResponse(response);
 }
 
 export async function createTask(payload) {
-  const response = await fetch('/tasks', {
+  const response = await fetch(apiPath('/tasks'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -32,7 +38,7 @@ export async function createTask(payload) {
 }
 
 export async function updateTask(id, payload) {
-  const response = await fetch('/tasks/' + id, {
+  const response = await fetch(apiPath('/tasks/' + id), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -41,14 +47,14 @@ export async function updateTask(id, payload) {
 }
 
 export async function removeTask(id) {
-  const response = await fetch('/tasks/' + id, {
+  const response = await fetch(apiPath('/tasks/' + id), {
     method: 'DELETE'
   });
   return parseResponse(response);
 }
 
 export async function closeWeek() {
-  const response = await fetch('/reports/export', {
+  const response = await fetch(apiPath('/reports/export'), {
     method: 'POST'
   });
   return parseResponse(response);
@@ -57,22 +63,22 @@ export async function closeWeek() {
 export const exportReport = closeWeek;
 
 export async function getReports() {
-  const response = await fetch('/reports');
+  const response = await fetch(apiPath('/reports'));
   return parseResponse(response);
 }
 
 export async function getReportById(id) {
-  const response = await fetch('/reports/' + id);
+  const response = await fetch(apiPath('/reports/' + id));
   return parseResponse(response);
 }
 
 export async function getEmployees() {
-  const response = await fetch('/employees');
+  const response = await fetch(apiPath('/employees'));
   return parseResponse(response);
 }
 
 export async function createEmployee(payload) {
-  const response = await fetch('/employees', {
+  const response = await fetch(apiPath('/employees'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -89,12 +95,12 @@ export async function getAiProjects(filters = {}) {
   }
 
   const query = params.toString();
-  const response = await fetch(query ? '/ai-projects?' + query : '/ai-projects');
+  const response = await fetch(query ? apiPath('/ai-projects?' + query) : apiPath('/ai-projects'));
   return parseResponse(response);
 }
 
 export async function createAiProject(payload) {
-  const response = await fetch('/ai-projects', {
+  const response = await fetch(apiPath('/ai-projects'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -103,7 +109,7 @@ export async function createAiProject(payload) {
 }
 
 export async function updateAiProject(id, payload) {
-  const response = await fetch('/ai-projects/' + id, {
+  const response = await fetch(apiPath('/ai-projects/' + id), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -112,13 +118,13 @@ export async function updateAiProject(id, payload) {
 }
 
 export async function removeAiProject(id) {
-  const response = await fetch('/ai-projects/' + id, {
+  const response = await fetch(apiPath('/ai-projects/' + id), {
     method: 'DELETE'
   });
   return parseResponse(response);
 }
 
 export async function getAiDashboard() {
-  const response = await fetch('/ai-projects/dashboard/summary');
+  const response = await fetch(apiPath('/ai-projects/dashboard/summary'));
   return parseResponse(response);
 }
