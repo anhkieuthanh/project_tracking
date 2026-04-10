@@ -6,8 +6,8 @@ async function bootstrap() {
   await initDb();
 
   const app = createApp();
-  app.listen(config.port, () => {
-    console.log(`Backend running at http://localhost:${config.port}`);
+  app.listen(config.port, config.host, () => {
+    console.log(`Backend running at http://${config.host}:${config.port}`);
   });
 }
 
