@@ -23,108 +23,131 @@ async function parseResponse(response) {
   throw new Error(message);
 }
 
-export async function getTasks() {
-  const response = await fetch(apiPath('/tasks'));
+async function jsonFetch(path, options = {}) {
+  const response = await fetch(apiPath(path), {
+    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+    ...options
+  });
   return parseResponse(response);
+}
+
+export async function getTasks() {
+  return jsonFetch('/tasks', { headers: {} });
 }
 
 export async function createTask(payload) {
-  const response = await fetch(apiPath('/tasks'), {
+  return jsonFetch('/tasks', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return parseResponse(response);
 }
 
 export async function updateTask(id, payload) {
-  const response = await fetch(apiPath('/tasks/' + id), {
+  return jsonFetch(`/tasks/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return parseResponse(response);
 }
 
 export async function removeTask(id) {
-  const response = await fetch(apiPath('/tasks/' + id), {
-    method: 'DELETE'
-  });
+  const response = await fetch(apiPath('/tasks/' + id), { method: 'DELETE' });
   return parseResponse(response);
 }
 
 export async function closeWeek() {
-  const response = await fetch(apiPath('/reports/export'), {
-    method: 'POST'
-  });
-  return parseResponse(response);
+  return jsonFetch('/reports/export', { method: 'POST' });
 }
 
-export const exportReport = closeWeek;
-
 export async function getReports() {
-  const response = await fetch(apiPath('/reports'));
-  return parseResponse(response);
+  return jsonFetch('/reports', { headers: {} });
 }
 
 export async function getReportById(id) {
-  const response = await fetch(apiPath('/reports/' + id));
-  return parseResponse(response);
+  return jsonFetch(`/reports/${id}`, { headers: {} });
 }
 
 export async function getEmployees() {
-  const response = await fetch(apiPath('/employees'));
-  return parseResponse(response);
+  return jsonFetch('/employees', { headers: {} });
 }
 
 export async function createEmployee(payload) {
-  const response = await fetch(apiPath('/employees'), {
+  return jsonFetch('/employees', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return parseResponse(response);
 }
 
-export async function getAiProjects(filters = {}) {
+export async function getAiInitiatives(filters = {}) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) {
     if (value !== undefined && value !== null && value !== '') {
       params.set(key, String(value));
     }
   }
-
   const query = params.toString();
-  const response = await fetch(query ? apiPath('/ai-projects?' + query) : apiPath('/ai-projects'));
-  return parseResponse(response);
+  return jsonFetch(query ? `/ai-initiatives?${query}` : '/ai-initiatives', { headers: {} });
 }
 
-export async function createAiProject(payload) {
-  const response = await fetch(apiPath('/ai-projects'), {
+export async function getAiInitiativeDetail(id) {
+  return jsonFetch(`/ai-initiatives/${id}`, { headers: {} });
+}
+
+export async function createAiInitiative(payload) {
+  return jsonFetch('/ai-initiatives', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return parseResponse(response);
 }
 
-export async function updateAiProject(id, payload) {
-  const response = await fetch(apiPath('/ai-projects/' + id), {
+export async function updateAiInitiative(id, payload) {
+  return jsonFetch(`/ai-initiatives/${id}/request-form`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return parseResponse(response);
 }
 
-export async function removeAiProject(id) {
-  const response = await fetch(apiPath('/ai-projects/' + id), {
-    method: 'DELETE'
+export async function updateFeasibility(id, payload) {
+  return jsonFetch(`/ai-initiatives/${id}/feasibility`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
   });
-  return parseResponse(response);
+}
+
+export async function submitGateReview(id, payload) {
+  return jsonFetch(`/ai-initiatives/${id}/gate-review`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateSolutionDesign(id, payload) {
+  return jsonFetch(`/ai-initiatives/${id}/solution-design`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateDelivery(id, payload) {
+  return jsonFetch(`/ai-initiatives/${id}/delivery`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateApprovals(id, payload) {
+  return jsonFetch(`/ai-initiatives/${id}/approvals`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function updateOperations(id, payload) {
+  return jsonFetch(`/ai-initiatives/${id}/operations`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
 }
 
 export async function getAiDashboard() {
-  const response = await fetch(apiPath('/ai-projects/dashboard/summary'));
-  return parseResponse(response);
+  return jsonFetch('/ai-initiatives/dashboard/summary', { headers: {} });
 }

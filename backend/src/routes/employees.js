@@ -7,7 +7,7 @@ const router = Router();
 router.get('/', async (_req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, created_at, updated_at
+      `SELECT id, name, role, created_at, updated_at
        FROM employees
        ORDER BY name ASC`
     );
@@ -26,7 +26,7 @@ router.post('/', async (req, res, next) => {
 
     const name = req.body.name.trim();
     const existing = await pool.query(
-      `SELECT id, name, created_at, updated_at
+      `SELECT id, name, role, created_at, updated_at
        FROM employees
        WHERE LOWER(name) = LOWER($1)
        LIMIT 1`,
@@ -38,10 +38,10 @@ router.post('/', async (req, res, next) => {
     }
 
     const inserted = await pool.query(
-      `INSERT INTO employees (name)
-       VALUES ($1)
-       RETURNING id, name, created_at, updated_at`,
-      [name]
+      `INSERT INTO employees (name, role)
+       VALUES ($1, $2)
+       RETURNING id, name, role, created_at, updated_at`,
+      [name, req.body.role?.trim() || 'Thành viên']
     );
 
     res.status(201).json(inserted.rows[0]);

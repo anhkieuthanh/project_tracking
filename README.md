@@ -1,43 +1,37 @@
-# Theo Doi Cong Viec Tuan + Du An AI
+# Website quản lý vòng đời AI doanh nghiệp
 
-Website gom 2 module:
-- Theo dõi công việc tuần
-- Theo dõi dự án AI cho nhân viên
+Website gồm 2 khối chức năng:
+- Quản lý công việc tuần
+- Quản lý full lifecycle triển khai AI doanh nghiệp theo 6 giai đoạn
 
-## Module 1: Công việc tuần
+## Khối 1: Công việc tuần
 
-Các trường:
-- Tên công việc
-- Ngày hoàn thành
-- Mức độ ưu tiên
-- Trạng thái
-- Phân loại
-- Ghi chú
+Giữ nguyên các tính năng:
+- CRUD công việc tuần
+- Chốt tuần để chuyển task sang lịch sử
+- Xem snapshot báo cáo đã chốt
 
-Có nút **Chốt tuần** để:
-1. Chuyển toàn bộ task sang lịch sử
-2. Reset danh sách task cho tuần mới
+## Khối 2: Vòng đời AI doanh nghiệp
 
-## Module 2: Dự án AI
+Thay thế hoàn toàn module `Dự án AI` cũ bằng workflow mới:
+- Giai đoạn 1: AI Request Form
+- Giai đoạn 2: Đánh giá khả thi + Gate Review
+- Giai đoạn 3: Thiết kế giải pháp
+- Giai đoạn 4: Triển khai & thử nghiệm
+- Giai đoạn 5: Phê duyệt & checklist go-live
+- Giai đoạn 6: Rollout & vận hành
 
-Các trường:
-- Ngày nhận dự án
-- Người đề xuất dự án
-- Mô tả dự án
-- Trạng thái
-- Thời gian thực hiện (mốc thời gian + số ngày)
-- Nhân viên phụ trách
+Tính năng chính:
+- Danh sách hồ sơ AI có filter theo phase, owner, priority, decision, khoảng ngày
+- Trang chi tiết hồ sơ với stepper 6 phase
+- Ghi nhận stage history
+- Dashboard điều hành theo phase, decision, owner, backlog phê duyệt, nearing deadline
 
-Tính năng:
-- Tách riêng khu `Đang theo dõi` và `Đã hoàn thành`
-- Lọc theo trạng thái, nhân viên, khoảng ngày nhận
-- Dashboard báo cáo theo trạng thái và nhân viên
-
-## 1) Chuẩn bị
+## Chuẩn bị
 
 Yêu cầu:
 - Node.js 18+
-- Docker (để chạy PostgreSQL)
+- Docker để chạy PostgreSQL
 
 Khởi động database:
 
@@ -45,18 +39,17 @@ Khởi động database:
 docker compose up -d
 ```
 
-## 2) Chạy backend
+## Chạy backend
 
 ```bash
 cd backend
-cp .env.example .env
 npm install
 npm run dev
 ```
 
 Backend chạy ở `http://localhost:4000`.
 
-## 3) Chạy frontend
+## Chạy frontend
 
 Mở terminal mới:
 
@@ -68,14 +61,9 @@ npm run dev
 
 Frontend chạy ở `http://localhost:5173`.
 
-## 4) Luồng sử dụng nhanh
-
-1. Quản lý công việc ở tab **Tuần hiện tại** và **Lịch sử**.
-2. Quản lý dự án ở tab **Dự án AI**.
-3. Xem tổng quan ở tab **Báo cáo AI**.
-
 ## API chính
 
+### Weekly tracking
 - `GET /tasks`
 - `POST /tasks`
 - `PUT /tasks/:id`
@@ -85,8 +73,30 @@ Frontend chạy ở `http://localhost:5173`.
 - `GET /reports/:id`
 - `GET /employees`
 - `POST /employees`
-- `GET /ai-projects`
-- `POST /ai-projects`
-- `PUT /ai-projects/:id`
-- `DELETE /ai-projects/:id`
-- `GET /ai-projects/dashboard/summary`
+
+### AI lifecycle
+- `GET /ai-initiatives`
+- `POST /ai-initiatives`
+- `GET /ai-initiatives/:id`
+- `PUT /ai-initiatives/:id`
+- `GET /ai-initiatives/:id/request-form`
+- `PUT /ai-initiatives/:id/request-form`
+- `GET /ai-initiatives/:id/feasibility`
+- `PUT /ai-initiatives/:id/feasibility`
+- `POST /ai-initiatives/:id/gate-review`
+- `GET /ai-initiatives/:id/solution-design`
+- `PUT /ai-initiatives/:id/solution-design`
+- `GET /ai-initiatives/:id/delivery`
+- `PUT /ai-initiatives/:id/delivery`
+- `GET /ai-initiatives/:id/approvals`
+- `PUT /ai-initiatives/:id/approvals`
+- `GET /ai-initiatives/:id/operations`
+- `PUT /ai-initiatives/:id/operations`
+- `GET /ai-initiatives/dashboard/summary`
+
+## Luồng sử dụng nhanh
+
+1. Quản lý đầu việc ở tab `Tuần hiện tại` và `Lịch sử`.
+2. Tạo hồ sơ AI mới tại tab `Vòng đời AI`.
+3. Hoàn thiện lần lượt ARF, feasibility, gate review, solution design, delivery, approvals và operations.
+4. Theo dõi portfolio ở tab `Dashboard điều hành`.

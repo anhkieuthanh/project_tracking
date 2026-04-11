@@ -9,17 +9,19 @@ describe('App', () => {
         url === '/project-tracking/_api/tasks' ||
         url === '/project-tracking/_api/reports' ||
         url === '/project-tracking/_api/employees' ||
-        url === '/project-tracking/_api/ai-projects' ||
-        url === '/project-tracking/_api/ai-projects/dashboard/summary'
+        url === '/project-tracking/_api/ai-initiatives' ||
+        url === '/project-tracking/_api/ai-initiatives/dashboard/summary'
       ) {
-        if (url === '/project-tracking/_api/ai-projects/dashboard/summary') {
+        if (url === '/project-tracking/_api/ai-initiatives/dashboard/summary') {
           return Promise.resolve({
             ok: true,
             status: 200,
             json: async () => ({
-              kpi: { total: 0, inProgress: 0, completed: 0, paused: 0 },
-              byStatus: [],
-              byEmployee: []
+              totals: { initiatives: 0, approvalBacklog: 0, nearingDeadline: 0 },
+              byStage: [],
+              byDecision: [],
+              byOwner: [],
+              nearingDeadline: []
             })
           });
         }
@@ -43,21 +45,24 @@ describe('App', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders weekly tracking title and loads initial tabs', async () => {
+  it('renders AI lifecycle title and loads initial tabs', async () => {
     render(<App />);
 
-    expect(screen.getByRole('heading', { name: 'Theo dõi công việc và dự án AI' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Website quản lý vòng đời AI doanh nghiệp' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Tuần hiện tại' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Lịch sử' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dự án AI' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Báo cáo AI' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Vòng đời AI' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dashboard điều hành' })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/tasks');
-      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/reports');
-      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/employees');
-      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/ai-projects');
-      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/ai-projects/dashboard/summary');
+      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/tasks', expect.anything());
+      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/reports', expect.anything());
+      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/employees', expect.anything());
+      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/ai-initiatives', expect.anything());
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/project-tracking/_api/ai-initiatives/dashboard/summary',
+        expect.anything()
+      );
     });
   });
 });

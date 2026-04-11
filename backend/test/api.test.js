@@ -14,7 +14,20 @@ const app = createApp();
 
 async function resetDb() {
   await pool.query(
-    'TRUNCATE TABLE ai_projects, employees, task_history, weekly_reports, tasks RESTART IDENTITY CASCADE'
+    `TRUNCATE TABLE
+      initiative_stage_history,
+      operations_records,
+      approval_records,
+      delivery_cycles,
+      solution_designs,
+      feasibility_reviews,
+      request_forms,
+      ai_initiatives,
+      employees,
+      task_history,
+      weekly_reports,
+      tasks
+     RESTART IDENTITY CASCADE`
   );
 }
 
@@ -101,7 +114,6 @@ test('close week moves tasks to history and resets weekly tasks', async () => {
     .expect(201);
 
   const exportResponse = await request(app).post('/reports/export').expect(201);
-
   assert.ok(exportResponse.body.reportId);
   assert.equal(exportResponse.body.stats.total, 2);
 
@@ -115,78 +127,239 @@ test('close week moves tasks to history and resets weekly tasks', async () => {
   assert.equal(detail.body.tasks.length, 2);
 });
 
-test('AI project CRUD + dashboard + filter works', async () => {
-  const employee = await request(app)
-    .post('/employees')
-    .send({ name: 'Nguyen Van A' })
-    .expect(201);
-
-  const projectCreated = await request(app)
-    .post('/ai-projects')
+test('AI initiative lifecycle flow works end to end', async () => {
+  const created = await request(app)
+    .post('/ai-initiatives')
     .send({
-      receivedDate: '2026-04-09',
-      proposerName: 'Pham Thu Ha',
-      description: 'Xay chatbot CSKH cho phong kinh doanh',
-      status: 'Đang triển khai',
-      employeeId: employee.body.id,
-      estimatedDays: 10,
-      actualDays: 4,
-      startDate: '2026-04-10',
-      targetEndDate: '2026-04-20',
-      actualEndDate: null
+      title: 'Chatbot nội bộ CSKH',
+      department: 'Kinh doanh',
+      proposerName: 'Phạm Thu Hà',
+      ownerEmployeeName: 'Nguyễn Văn A',
+      ownerEmployeeRole: 'AI Project Manager',
+      requestedAt: '2026-04-09',
+      targetDeadline: '2026-05-15',
+      priority: 'Cao',
+      problemStatement: 'Nhân viên mất nhiều thời gian trả lời câu hỏi lặp lại.',
+      objective: 'Tự động hóa trả lời câu hỏi phổ biến.',
+      successKpi: 'Giảm 30% thời gian phản hồi.',
+      endUsers: 'Nhân viên CSKH',
+      usageFrequency: 'Hàng ngày',
+      timeBudgetConstraints: 'Go-live trong quý 2 với ngân sách cố định.',
+      availableDataStatus: 'Một phần',
+      availableDataDetails: 'Có FAQ và transcript 6 tháng.',
+      desiredDeadline: '2026-05-10',
+      budgetEstimate: '250 triệu',
+      painPoints: 'Trả lời thủ công, thiếu nhất quán.',
+      notes: 'Ưu tiên cao cho team kinh doanh.'
     })
     .expect(201);
 
-  assert.equal(projectCreated.body.employee_name, 'Nguyen Van A');
+  assert.equal(created.body.current_stage, 'request');
+  assert.equal(created.body.requestForm.available_data_status, 'Một phần');
 
-  const projectCreatedWithNewEmployee = await request(app)
-    .post('/ai-projects')
-    .send({
-      receivedDate: '2026-04-11',
-      proposerName: 'Le Van B',
-      description: 'He thong tom tat hop noi bo',
-      status: 'Hoàn thành',
-      employeeName: 'Tran Thi B',
-      estimatedDays: 7,
-      actualDays: 6,
-      startDate: '2026-04-11',
-      targetEndDate: '2026-04-18',
-      actualEndDate: '2026-04-17'
-    })
-    .expect(201);
-
-  assert.equal(projectCreatedWithNewEmployee.body.employee_name, 'Tran Thi B');
-
-  const filtered = await request(app)
-    .get('/ai-projects')
-    .query({ status: 'Hoàn thành' })
+  const list = await request(app)
+    .get('/ai-initiatives')
+    .query({ priority: 'Cao' })
     .expect(200);
-  assert.equal(filtered.body.length, 1);
-  assert.equal(filtered.body[0].status, 'Hoàn thành');
+  assert.equal(list.body.length, 1);
+  assert.equal(list.body[0].stage_label, 'Yêu cầu AI');
 
-  const updated = await request(app)
-    .put(`/ai-projects/${projectCreated.body.id}`)
+  await request(app)
+    .put(`/ai-initiatives/${created.body.id}/feasibility`)
     .send({
-      receivedDate: '2026-04-09',
-      proposerName: 'Pham Thu Ha',
-      description: 'Xay chatbot CSKH cho phong kinh doanh (v2)',
-      status: 'Tạm dừng',
-      employeeId: employee.body.id,
-      estimatedDays: 12,
-      actualDays: 5,
-      startDate: '2026-04-10',
-      targetEndDate: '2026-04-22',
-      actualEndDate: null
+      dataScore: 4,
+      technicalScore: 4,
+      businessScore: 5,
+      complianceScore: 3,
+      dataSummary: 'Dữ liệu đủ để bắt đầu pilot.',
+      technicalSummary: 'Hạ tầng hiện tại hỗ trợ API và search.',
+      businessSummary: 'ROI tốt nhờ giảm tải CSKH.',
+      complianceSummary: 'Cần kiểm soát PII ở câu hỏi người dùng.',
+      reviewedBy: 'BA Lead'
     })
     .expect(200);
-  assert.equal(updated.body.status, 'Tạm dừng');
 
-  const dashboard = await request(app).get('/ai-projects/dashboard/summary').expect(200);
-  assert.equal(dashboard.body.kpi.total, 2);
-  assert.equal(dashboard.body.kpi.completed, 1);
-  assert.equal(dashboard.body.kpi.paused, 1);
-  assert.ok(dashboard.body.byStatus.length >= 2);
-  assert.ok(dashboard.body.byEmployee.length >= 2);
+  const gate = await request(app)
+    .post(`/ai-initiatives/${created.body.id}/gate-review`)
+    .send({
+      decision: 'Go',
+      conditionalItems: [],
+      reviewedBy: 'Governance Board'
+    })
+    .expect(200);
+  assert.equal(gate.body.currentStage, 'design');
 
-  await request(app).delete(`/ai-projects/${projectCreated.body.id}`).expect(204);
+  await request(app)
+    .put(`/ai-initiatives/${created.body.id}/solution-design`)
+    .send({
+      solutionOption: 'RAG',
+      architectureSummary: 'Web app + retrieval service + LLM gateway.',
+      integrationRequirements: 'Kết nối CRM và kho tài liệu nội bộ.',
+      securityRequirements: 'RBAC, audit log, masking dữ liệu nhạy cảm.',
+      monitoringPlan: 'Theo dõi latency, error rate, hallucination.',
+      milestonePlan: 'Sprint 1 PoC, Sprint 2 pilot, Sprint 3 go-live.',
+      staffingPlan: 'PM, BA, ML Engineer, Backend, Frontend, DevOps.',
+      risksAndMitigations: 'Prompt injection được chặn bằng policy.',
+      updatedBy: 'Tech Lead'
+    })
+    .expect(200);
+
+  await request(app)
+    .put(`/ai-initiatives/${created.body.id}/delivery`)
+    .send({
+      pocStatus: 'Hoàn thành',
+      modelTestStatus: 'Hoàn thành',
+      uatStatus: 'Hoàn thành',
+      securityTestStatus: 'Hoàn thành',
+      modelCardStatus: 'Hoàn thành',
+      performanceMetrics: 'Latency P95 2.1s, accuracy nội bộ 89%.',
+      pilotFeedback: 'Người dùng pilot phản hồi tích cực.',
+      deliveryNotes: 'Sẵn sàng chuyển phê duyệt.',
+      updatedBy: 'Delivery Manager'
+    })
+    .expect(200);
+
+  const approvalConflict = await request(app)
+    .put(`/ai-initiatives/${created.body.id}/approvals`)
+    .send({
+      governanceApproved: true,
+      techApproved: true,
+      legalApproved: true,
+      businessApproved: true,
+      checklist: {
+        performance: true,
+        security: false,
+        documentation: true,
+        rollback: true,
+        monitoring: true,
+        training: true,
+        sla: true,
+        budget: true,
+        incident: true
+      },
+      readyForGoLive: true,
+      approvalNotes: 'Thiếu security chưa được go live.',
+      updatedBy: 'PM'
+    })
+    .expect(409);
+  assert.match(approvalConflict.body.error, /Ready for Go-Live/);
+
+  const approvals = await request(app)
+    .put(`/ai-initiatives/${created.body.id}/approvals`)
+    .send({
+      governanceApproved: true,
+      techApproved: true,
+      legalApproved: true,
+      businessApproved: true,
+      checklist: {
+        performance: true,
+        security: true,
+        documentation: true,
+        rollback: true,
+        monitoring: true,
+        training: true,
+        sla: true,
+        budget: true,
+        incident: true
+      },
+      readyForGoLive: true,
+      approvalNotes: 'Đủ điều kiện go-live.',
+      updatedBy: 'PM'
+    })
+    .expect(200);
+  assert.equal(approvals.body.ready_for_go_live, true);
+
+  const operations = await request(app)
+    .put(`/ai-initiatives/${created.body.id}/operations`)
+    .send({
+      rolloutStrategy: 'Canary Release',
+      slaSlo: '99.5% availability, P95 dưới 3 giây.',
+      alertingSetup: 'Alert theo error rate, latency, drift.',
+      kpiImpact: 'Giảm 35% ticket lặp lại sau 2 tuần pilot.',
+      incidentLog: 'Chưa có P1/P2.',
+      continuousImprovement: 'Review drift hàng tuần và retraining hàng quý.',
+      adoptionPlan: 'Đào tạo 2 buổi cho CSKH và sales.',
+      operationalNotes: 'Theo dõi thêm saturation giờ cao điểm.',
+      updatedBy: 'MLOps'
+    })
+    .expect(200);
+  assert.equal(operations.body.rollout_strategy, 'Canary Release');
+
+  const detail = await request(app).get(`/ai-initiatives/${created.body.id}`).expect(200);
+  assert.equal(detail.body.current_stage, 'operations');
+  assert.ok(detail.body.stageHistory.length >= 5);
+
+  const dashboard = await request(app).get('/ai-initiatives/dashboard/summary').expect(200);
+  assert.equal(dashboard.body.totals.initiatives, 1);
+  assert.equal(dashboard.body.totals.approvalBacklog, 0);
+  assert.equal(dashboard.body.byStage[0].total, 1);
+  assert.equal(dashboard.body.byOwner[0].owner_name, 'Nguyễn Văn A');
+});
+
+test('No-Go blocks later phases and keeps record queryable', async () => {
+  const created = await request(app)
+    .post('/ai-initiatives')
+    .send({
+      title: 'Dự báo nghỉ việc',
+      department: 'Nhân sự',
+      proposerName: 'Lê Minh',
+      ownerEmployeeName: 'Trần B',
+      requestedAt: '2026-04-11',
+      targetDeadline: '2026-06-01',
+      priority: 'Trung bình',
+      problemStatement: 'Cần nhận diện nguy cơ nghỉ việc.',
+      objective: 'Ưu tiên giữ chân nhân sự chủ chốt.',
+      successKpi: 'Giảm turnover 10%.',
+      endUsers: 'HRBP',
+      usageFrequency: 'Hàng tuần',
+      timeBudgetConstraints: 'Nguồn lực hạn chế.',
+      availableDataStatus: 'Không',
+      availableDataDetails: 'Dữ liệu phân tán.',
+      desiredDeadline: '2026-06-01',
+      budgetEstimate: '100 triệu',
+      painPoints: 'Thiếu dữ liệu lịch sử.',
+      notes: ''
+    })
+    .expect(201);
+
+  await request(app)
+    .put(`/ai-initiatives/${created.body.id}/feasibility`)
+    .send({
+      dataScore: 1,
+      technicalScore: 2,
+      businessScore: 3,
+      complianceScore: 2,
+      dataSummary: 'Dữ liệu thiếu và không đồng nhất.',
+      technicalSummary: 'Cần nhiều tích hợp mới.',
+      businessSummary: 'Giá trị có nhưng chưa đo được rõ.',
+      complianceSummary: 'Rủi ro đạo đức cao.',
+      reviewedBy: 'BA'
+    })
+    .expect(200);
+
+  await request(app)
+    .post(`/ai-initiatives/${created.body.id}/gate-review`)
+    .send({
+      decision: 'No-Go',
+      conditionalItems: [],
+      reviewedBy: 'Board'
+    })
+    .expect(200);
+
+  const blocked = await request(app)
+    .put(`/ai-initiatives/${created.body.id}/solution-design`)
+    .send({
+      solutionOption: 'Build',
+      architectureSummary: 'N/A',
+      integrationRequirements: 'N/A',
+      securityRequirements: 'N/A',
+      monitoringPlan: 'N/A',
+      milestonePlan: 'N/A'
+    })
+    .expect(409);
+
+  assert.match(blocked.body.error, /No-Go|khóa/i);
+
+  const detail = await request(app).get(`/ai-initiatives/${created.body.id}`).expect(200);
+  assert.equal(detail.body.current_stage, 'no_go');
 });

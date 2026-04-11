@@ -1,21 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   closeWeek,
-  createAiProject,
+  createAiInitiative,
   createTask,
   getAiDashboard,
-  getAiProjects,
+  getAiInitiativeDetail,
+  getAiInitiatives,
   getEmployees,
   getReportById,
   getReports,
   getTasks,
-  removeAiProject,
   removeTask,
-  updateAiProject,
+  submitGateReview,
+  updateAiInitiative,
+  updateApprovals,
+  updateDelivery,
+  updateFeasibility,
+  updateOperations,
+  updateSolutionDesign,
   updateTask
 } from './api';
 
-const initialForm = {
+const initialTaskForm = {
   title: '',
   completedDate: '',
   priority: 'Trung bình',
@@ -24,50 +30,136 @@ const initialForm = {
   note: ''
 };
 
-const initialAiForm = {
-  receivedDate: '',
+const initialRequestForm = {
+  title: '',
+  department: '',
   proposerName: '',
-  description: '',
-  status: 'Đề xuất',
-  employeeId: '',
-  employeeName: '',
-  estimatedDays: '',
-  actualDays: '',
-  startDate: '',
-  targetEndDate: '',
-  actualEndDate: ''
+  ownerEmployeeId: '',
+  ownerEmployeeName: '',
+  ownerEmployeeRole: 'AI Project Manager',
+  requestedAt: '',
+  targetDeadline: '',
+  priority: 'Trung bình',
+  problemStatement: '',
+  objective: '',
+  successKpi: '',
+  endUsers: '',
+  usageFrequency: '',
+  timeBudgetConstraints: '',
+  availableDataStatus: 'Một phần',
+  availableDataDetails: '',
+  desiredDeadline: '',
+  budgetEstimate: '',
+  painPoints: '',
+  notes: '',
+  updatedBy: 'PM'
 };
 
-const priorities = ['Cao', 'Trung bình', 'Thấp'];
-const statuses = ['Chưa làm', 'Đang làm', 'Hoàn thành', 'Tạm dừng'];
-const aiStatuses = ['Đề xuất', 'Đã duyệt', 'Đang triển khai', 'Hoàn thành', 'Tạm dừng'];
+const initialFeasibilityForm = {
+  dataScore: 3,
+  technicalScore: 3,
+  businessScore: 3,
+  complianceScore: 3,
+  dataSummary: '',
+  technicalSummary: '',
+  businessSummary: '',
+  complianceSummary: '',
+  reviewedBy: 'BA Lead'
+};
+
+const initialGateForm = {
+  decision: 'Go',
+  conditionalItems: '',
+  reviewedBy: 'Governance Board'
+};
+
+const initialSolutionForm = {
+  solutionOption: 'RAG',
+  architectureSummary: '',
+  integrationRequirements: '',
+  securityRequirements: '',
+  monitoringPlan: '',
+  milestonePlan: '',
+  staffingPlan: '',
+  risksAndMitigations: '',
+  updatedBy: 'Tech Lead'
+};
+
+const initialDeliveryForm = {
+  pocStatus: 'Chưa bắt đầu',
+  modelTestStatus: 'Chưa bắt đầu',
+  uatStatus: 'Chưa bắt đầu',
+  securityTestStatus: 'Chưa bắt đầu',
+  modelCardStatus: 'Chưa bắt đầu',
+  performanceMetrics: '',
+  pilotFeedback: '',
+  deliveryNotes: '',
+  updatedBy: 'Delivery Manager'
+};
+
+const initialApprovalForm = {
+  governanceApproved: false,
+  techApproved: false,
+  legalApproved: false,
+  businessApproved: false,
+  checklist: {
+    performance: false,
+    security: false,
+    documentation: false,
+    rollback: false,
+    monitoring: false,
+    training: false,
+    sla: false,
+    budget: false,
+    incident: false
+  },
+  readyForGoLive: false,
+  approvalNotes: '',
+  updatedBy: 'PM'
+};
+
+const initialOperationsForm = {
+  rolloutStrategy: 'Canary Release',
+  slaSlo: '',
+  alertingSetup: '',
+  kpiImpact: '',
+  incidentLog: '',
+  continuousImprovement: '',
+  adoptionPlan: '',
+  operationalNotes: '',
+  updatedBy: 'MLOps'
+};
+
 const tabItems = [
   { id: 'week', label: 'Tuần hiện tại' },
   { id: 'history', label: 'Lịch sử' },
-  { id: 'ai-projects', label: 'Dự án AI' },
-  { id: 'ai-dashboard', label: 'Báo cáo AI' }
+  { id: 'ai-workflow', label: 'Vòng đời AI' },
+  { id: 'ai-dashboard', label: 'Dashboard điều hành' }
 ];
 
-function EditIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="icon-svg" aria-hidden="true">
-      <path d="M3 17.25V21h3.75L17.8 9.95l-3.75-3.75L3 17.25zm14.71-9.04a1 1 0 0 0 0-1.41l-1.5-1.5a1 1 0 0 0-1.41 0l-1.13 1.13 3.75 3.75 1.29-1.97z" />
-    </svg>
-  );
-}
+const priorities = ['Cao', 'Trung bình', 'Thấp'];
+const statuses = ['Chưa làm', 'Đang làm', 'Hoàn thành', 'Tạm dừng'];
+const stageItems = [
+  ['request', 'Yêu cầu AI'],
+  ['feasibility', 'Đánh giá khả thi'],
+  ['design', 'Thiết kế giải pháp'],
+  ['delivery', 'Triển khai & thử nghiệm'],
+  ['approval', 'Phê duyệt'],
+  ['operations', 'Vận hành'],
+  ['no_go', 'No-Go']
+];
+const solutionOptions = ['Build', 'Buy', 'Fine-tune', 'RAG', 'API / Third-party'];
+const deliveryStatuses = ['Chưa bắt đầu', 'Đang thực hiện', 'Hoàn thành', 'Tạm dừng'];
+const rolloutStrategies = ['Shadow Mode', 'Canary Release', 'Blue-Green', 'Feature Flag'];
 
-function DeleteIcon() {
-  return (
-    <svg viewBox="0 0 24 24" className="icon-svg" aria-hidden="true">
-      <path d="M6 7h12l-1 13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 7zm3-4h6l1 2h4v2H4V5h4l1-2z" />
-    </svg>
-  );
+function formatDate(value) {
+  return value ? String(value).slice(0, 10) : '';
 }
 
 function normalizeTaskForForm(task) {
   return {
     title: task.title,
-    completedDate: task.completed_date ? String(task.completed_date).slice(0, 10) : '',
+    completedDate: formatDate(task.completed_date),
     priority: task.priority,
     status: task.status,
     category: task.category,
@@ -75,345 +167,402 @@ function normalizeTaskForForm(task) {
   };
 }
 
-function normalizeAiProjectForForm(project) {
+function normalizeRequestForm(detail) {
+  const form = detail?.requestForm || {};
   return {
-    receivedDate: project.received_date ? String(project.received_date).slice(0, 10) : '',
-    proposerName: project.proposer_name || '',
-    description: project.description || '',
-    status: project.status || 'Đề xuất',
-    employeeId: project.employee_id ? String(project.employee_id) : '',
-    employeeName: '',
-    estimatedDays: project.estimated_days ?? '',
-    actualDays: project.actual_days ?? '',
-    startDate: project.start_date ? String(project.start_date).slice(0, 10) : '',
-    targetEndDate: project.target_end_date ? String(project.target_end_date).slice(0, 10) : '',
-    actualEndDate: project.actual_end_date ? String(project.actual_end_date).slice(0, 10) : ''
+    title: detail?.title || '',
+    department: detail?.department || '',
+    proposerName: detail?.proposer_name || '',
+    ownerEmployeeId: detail?.owner_employee_id ? String(detail.owner_employee_id) : '',
+    ownerEmployeeName: '',
+    ownerEmployeeRole: detail?.owner_role || 'AI Project Manager',
+    requestedAt: formatDate(detail?.requested_at),
+    targetDeadline: formatDate(detail?.target_deadline),
+    priority: detail?.priority || 'Trung bình',
+    problemStatement: form.problem_statement || '',
+    objective: form.objective || '',
+    successKpi: form.success_kpi || '',
+    endUsers: form.end_users || '',
+    usageFrequency: form.usage_frequency || '',
+    timeBudgetConstraints: form.time_budget_constraints || '',
+    availableDataStatus: form.available_data_status || 'Một phần',
+    availableDataDetails: form.available_data_details || '',
+    desiredDeadline: formatDate(form.desired_deadline),
+    budgetEstimate: form.budget_estimate || '',
+    painPoints: form.pain_points || '',
+    notes: form.notes || '',
+    updatedBy: 'PM'
   };
 }
 
-function formatDate(value) {
-  if (!value) {
-    return '-';
-  }
-  return String(value).slice(0, 10);
+function normalizeFeasibilityForm(detail) {
+  const data = detail?.feasibility || {};
+  return {
+    dataScore: data.data_score || 3,
+    technicalScore: data.technical_score || 3,
+    businessScore: data.business_score || 3,
+    complianceScore: data.compliance_score || 3,
+    dataSummary: data.data_summary || '',
+    technicalSummary: data.technical_summary || '',
+    businessSummary: data.business_summary || '',
+    complianceSummary: data.compliance_summary || '',
+    reviewedBy: data.reviewed_by || 'BA Lead'
+  };
 }
 
-function getPriorityClass(priority) {
-  if (priority === 'Cao') return 'priority-high';
-  if (priority === 'Trung bình') return 'priority-medium';
-  return 'priority-low';
+function normalizeGateForm(detail) {
+  const data = detail?.feasibility || {};
+  return {
+    decision: data.decision || 'Go',
+    conditionalItems: Array.isArray(data.conditional_items) ? data.conditional_items.join('\n') : '',
+    reviewedBy: data.reviewed_by || 'Governance Board'
+  };
 }
 
-function getTaskStatusClass(status) {
-  if (status === 'Hoàn thành') return 'status-done';
-  if (status === 'Đang làm') return 'status-progress';
-  if (status === 'Tạm dừng') return 'status-paused';
-  return 'status-todo';
+function normalizeSolutionForm(detail) {
+  const data = detail?.solutionDesign || {};
+  return {
+    solutionOption: data.solution_option || 'RAG',
+    architectureSummary: data.architecture_summary || '',
+    integrationRequirements: data.integration_requirements || '',
+    securityRequirements: data.security_requirements || '',
+    monitoringPlan: data.monitoring_plan || '',
+    milestonePlan: data.milestone_plan || '',
+    staffingPlan: data.staffing_plan || '',
+    risksAndMitigations: data.risks_and_mitigations || '',
+    updatedBy: 'Tech Lead'
+  };
 }
 
-function getAiStatusClass(status) {
-  if (status === 'Hoàn thành') return 'status-done';
-  if (status === 'Đang triển khai') return 'status-progress';
-  if (status === 'Đã duyệt') return 'status-approved';
-  if (status === 'Tạm dừng') return 'status-paused';
-  return 'status-proposal';
+function normalizeDeliveryForm(detail) {
+  const data = detail?.delivery || {};
+  return {
+    pocStatus: data.poc_status || 'Chưa bắt đầu',
+    modelTestStatus: data.model_test_status || 'Chưa bắt đầu',
+    uatStatus: data.uat_status || 'Chưa bắt đầu',
+    securityTestStatus: data.security_test_status || 'Chưa bắt đầu',
+    modelCardStatus: data.model_card_status || 'Chưa bắt đầu',
+    performanceMetrics: data.performance_metrics || '',
+    pilotFeedback: data.pilot_feedback || '',
+    deliveryNotes: data.delivery_notes || '',
+    updatedBy: 'Delivery Manager'
+  };
+}
+
+function normalizeApprovalForm(detail) {
+  const data = detail?.approvals || {};
+  return {
+    governanceApproved: Boolean(data.governance_approved),
+    techApproved: Boolean(data.tech_approved),
+    legalApproved: Boolean(data.legal_approved),
+    businessApproved: Boolean(data.business_approved),
+    checklist: {
+      ...initialApprovalForm.checklist,
+      ...(data.checklist || {})
+    },
+    readyForGoLive: Boolean(data.ready_for_go_live),
+    approvalNotes: data.approval_notes || '',
+    updatedBy: 'PM'
+  };
+}
+
+function normalizeOperationsForm(detail) {
+  const data = detail?.operations || {};
+  return {
+    rolloutStrategy: data.rollout_strategy || 'Canary Release',
+    slaSlo: data.sla_slo || '',
+    alertingSetup: data.alerting_setup || '',
+    kpiImpact: data.kpi_impact || '',
+    incidentLog: data.incident_log || '',
+    continuousImprovement: data.continuous_improvement || '',
+    adoptionPlan: data.adoption_plan || '',
+    operationalNotes: data.operational_notes || '',
+    updatedBy: 'MLOps'
+  };
+}
+
+function CheckboxField({ label, checked, onChange }) {
+  return (
+    <label className="checkbox">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+function StagePill({ stage }) {
+  return <span className={`stage-pill stage-${stage}`}>{stageItems.find((item) => item[0] === stage)?.[1] || stage}</span>;
+}
+
+function DashboardCard({ label, value, helper }) {
+  return (
+    <article className="metric-card">
+      <span>{label}</span>
+      <strong>{value}</strong>
+      {helper ? <small>{helper}</small> : null}
+    </article>
+  );
 }
 
 export default function App() {
-  const [tasks, setTasks] = useState([]);
-  const [reports, setReports] = useState([]);
-  const [selectedReport, setSelectedReport] = useState(null);
   const [activeTab, setActiveTab] = useState('week');
-  const [formData, setFormData] = useState(initialForm);
-  const [editingId, setEditingId] = useState(null);
-
-  const [employees, setEmployees] = useState([]);
-  const [aiProjects, setAiProjects] = useState([]);
-  const [aiDashboard, setAiDashboard] = useState({
-    kpi: { total: 0, inProgress: 0, completed: 0, paused: 0 },
-    byStatus: [],
-    byEmployee: []
-  });
-  const [aiFormData, setAiFormData] = useState(initialAiForm);
-  const [aiEditingId, setAiEditingId] = useState(null);
-  const [aiFilters, setAiFilters] = useState({
-    status: '',
-    employeeId: '',
-    receivedFrom: '',
-    receivedTo: ''
-  });
-
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const summary = useMemo(() => {
-    return {
+  const [tasks, setTasks] = useState([]);
+  const [reports, setReports] = useState([]);
+  const [selectedReport, setSelectedReport] = useState(null);
+  const [taskForm, setTaskForm] = useState(initialTaskForm);
+  const [editingTaskId, setEditingTaskId] = useState(null);
+
+  const [employees, setEmployees] = useState([]);
+  const [aiInitiatives, setAiInitiatives] = useState([]);
+  const [selectedInitiativeId, setSelectedInitiativeId] = useState(null);
+  const [initiativeDetail, setInitiativeDetail] = useState(null);
+  const [dashboard, setDashboard] = useState({
+    totals: { initiatives: 0, approvalBacklog: 0, nearingDeadline: 0 },
+    byStage: [],
+    byDecision: [],
+    byOwner: [],
+    nearingDeadline: []
+  });
+  const [filters, setFilters] = useState({
+    stage: '',
+    priority: '',
+    ownerEmployeeId: '',
+    gateDecision: '',
+    requestedFrom: '',
+    requestedTo: ''
+  });
+
+  const [requestForm, setRequestForm] = useState(initialRequestForm);
+  const [feasibilityForm, setFeasibilityForm] = useState(initialFeasibilityForm);
+  const [gateForm, setGateForm] = useState(initialGateForm);
+  const [solutionForm, setSolutionForm] = useState(initialSolutionForm);
+  const [deliveryForm, setDeliveryForm] = useState(initialDeliveryForm);
+  const [approvalForm, setApprovalForm] = useState(initialApprovalForm);
+  const [operationsForm, setOperationsForm] = useState(initialOperationsForm);
+
+  const weeklySummary = useMemo(
+    () => ({
       total: tasks.length,
       done: tasks.filter((t) => t.status === 'Hoàn thành').length,
       inProgress: tasks.filter((t) => t.status === 'Đang làm').length,
-      blocked: tasks.filter((t) => t.status === 'Tạm dừng').length,
+      paused: tasks.filter((t) => t.status === 'Tạm dừng').length,
       todo: tasks.filter((t) => t.status === 'Chưa làm').length
-    };
-  }, [tasks]);
-
-  const activeAiProjects = useMemo(
-    () => aiProjects.filter((project) => project.status !== 'Hoàn thành'),
-    [aiProjects]
-  );
-  const completedAiProjects = useMemo(
-    () => aiProjects.filter((project) => project.status === 'Hoàn thành'),
-    [aiProjects]
+    }),
+    [tasks]
   );
 
-  const statusChartMax = useMemo(() => {
-    const totals = aiDashboard.byStatus.map((item) => item.total);
-    return totals.length ? Math.max(...totals) : 1;
-  }, [aiDashboard.byStatus]);
-
-  const employeeChartMax = useMemo(() => {
-    const totals = aiDashboard.byEmployee.map((item) => item.total);
-    return totals.length ? Math.max(...totals) : 1;
-  }, [aiDashboard.byEmployee]);
-
-  async function loadTasks() {
-    const rows = await getTasks();
-    setTasks(rows);
+  async function loadInitial() {
+    setLoading(true);
+    setError('');
+    try {
+      const [taskRows, reportRows, employeeRows, initiativeRows, dashboardRows] = await Promise.all([
+        getTasks(),
+        getReports(),
+        getEmployees(),
+        getAiInitiatives(),
+        getAiDashboard()
+      ]);
+      setTasks(taskRows);
+      setReports(reportRows);
+      setEmployees(employeeRows);
+      setAiInitiatives(initiativeRows);
+      setDashboard(dashboardRows);
+      if (initiativeRows[0]) {
+        await loadInitiativeDetail(initiativeRows[0].id);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
-  async function loadReports() {
-    const rows = await getReports();
-    setReports(rows);
+  async function reloadAiWorkspace(nextFilters = filters, preferredId = selectedInitiativeId) {
+    const [initiativeRows, dashboardRows, employeeRows] = await Promise.all([
+      getAiInitiatives(nextFilters),
+      getAiDashboard(),
+      getEmployees()
+    ]);
+    setAiInitiatives(initiativeRows);
+    setDashboard(dashboardRows);
+    setEmployees(employeeRows);
+
+    const nextId = preferredId && initiativeRows.some((item) => item.id === preferredId)
+      ? preferredId
+      : initiativeRows[0]?.id || null;
+
+    if (nextId) {
+      await loadInitiativeDetail(nextId);
+    } else {
+      resetAiForms();
+      setSelectedInitiativeId(null);
+      setInitiativeDetail(null);
+    }
   }
 
-  async function loadEmployees() {
-    const rows = await getEmployees();
-    setEmployees(rows);
+  async function loadInitiativeDetail(id) {
+    const detail = await getAiInitiativeDetail(id);
+    setSelectedInitiativeId(id);
+    setInitiativeDetail(detail);
+    setRequestForm(normalizeRequestForm(detail));
+    setFeasibilityForm(normalizeFeasibilityForm(detail));
+    setGateForm(normalizeGateForm(detail));
+    setSolutionForm(normalizeSolutionForm(detail));
+    setDeliveryForm(normalizeDeliveryForm(detail));
+    setApprovalForm(normalizeApprovalForm(detail));
+    setOperationsForm(normalizeOperationsForm(detail));
   }
 
-  async function loadAiProjects(filters = aiFilters) {
-    const rows = await getAiProjects(filters);
-    setAiProjects(rows);
-  }
-
-  async function loadAiDashboard() {
-    const data = await getAiDashboard();
-    setAiDashboard(data);
+  function resetAiForms() {
+    setRequestForm(initialRequestForm);
+    setFeasibilityForm(initialFeasibilityForm);
+    setGateForm(initialGateForm);
+    setSolutionForm(initialSolutionForm);
+    setDeliveryForm(initialDeliveryForm);
+    setApprovalForm(initialApprovalForm);
+    setOperationsForm(initialOperationsForm);
   }
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      setError('');
-
-      try {
-        await Promise.all([
-          loadTasks(),
-          loadReports(),
-          loadEmployees(),
-          loadAiProjects(aiFilters),
-          loadAiDashboard()
-        ]);
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadInitial();
   }, []);
 
-  function handleInputChange(event) {
+  function handleTaskChange(event) {
     const { name, value } = event.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setTaskForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  async function handleSubmit(event) {
+  async function handleTaskSubmit(event) {
     event.preventDefault();
     setError('');
     setMessage('');
-
     try {
-      if (editingId) {
-        await updateTask(editingId, formData);
-        setMessage('Đã cập nhật công việc.');
+      if (editingTaskId) {
+        await updateTask(editingTaskId, taskForm);
+        setMessage('Đã cập nhật công việc tuần.');
       } else {
-        await createTask(formData);
-        setMessage('Đã thêm công việc mới.');
+        await createTask(taskForm);
+        setMessage('Đã thêm công việc tuần.');
       }
-
-      setFormData(initialForm);
-      setEditingId(null);
-      await loadTasks();
+      setTaskForm(initialTaskForm);
+      setEditingTaskId(null);
+      setTasks(await getTasks());
     } catch (err) {
       setError(err.message);
     }
   }
 
-  function handleEdit(task) {
-    setEditingId(task.id);
-    setFormData(normalizeTaskForForm(task));
-  }
-
-  function handleCancelEdit() {
-    setEditingId(null);
-    setFormData(initialForm);
-  }
-
-  async function handleDelete(taskId) {
-    const ok = window.confirm('Bạn chắc chắn muốn xóa công việc này?');
-    if (!ok) {
-      return;
-    }
-
-    setError('');
-    setMessage('');
-
+  async function handleDeleteTask(id) {
+    if (!window.confirm('Bạn chắc chắn muốn xóa công việc này?')) return;
     try {
-      await removeTask(taskId);
+      await removeTask(id);
+      setTasks(await getTasks());
       setMessage('Đã xóa công việc.');
-      await loadTasks();
     } catch (err) {
       setError(err.message);
     }
   }
 
   async function handleCloseWeek() {
-    const ok = window.confirm(
-      'Sau khi chốt tuần, toàn bộ công việc tuần này sẽ chuyển vào lịch sử và reset cho tuần mới. Tiếp tục?'
-    );
-    if (!ok) {
-      return;
-    }
-
-    setError('');
-    setMessage('Đang chốt tuần...');
-
+    if (!window.confirm('Chốt tuần sẽ chuyển toàn bộ task sang lịch sử. Tiếp tục?')) return;
     try {
       await closeWeek();
-
-      setMessage('Chốt tuần thành công. Dữ liệu đã được chuyển vào lịch sử.');
+      const [taskRows, reportRows] = await Promise.all([getTasks(), getReports()]);
+      setTasks(taskRows);
+      setReports(reportRows);
       setSelectedReport(null);
-
-      await Promise.all([loadTasks(), loadReports()]);
       setActiveTab('history');
+      setMessage('Chốt tuần thành công.');
     } catch (err) {
       setError(err.message);
-      setMessage('');
     }
   }
 
   async function handleOpenReport(reportId) {
-    setError('');
-
     try {
-      const detail = await getReportById(reportId);
-      setSelectedReport(detail);
+      setSelectedReport(await getReportById(reportId));
     } catch (err) {
       setError(err.message);
     }
   }
 
-  function handleAiInputChange(event) {
+  function handleRequestChange(event) {
     const { name, value } = event.target;
-
-    if (name === 'employeeId') {
-      setAiFormData((prev) => ({ ...prev, employeeId: value, employeeName: '' }));
+    if (name === 'ownerEmployeeId') {
+      setRequestForm((prev) => ({ ...prev, ownerEmployeeId: value, ownerEmployeeName: '' }));
       return;
     }
-
-    if (name === 'employeeName') {
-      setAiFormData((prev) => ({ ...prev, employeeName: value, employeeId: '' }));
+    if (name === 'ownerEmployeeName') {
+      setRequestForm((prev) => ({ ...prev, ownerEmployeeName: value, ownerEmployeeId: '' }));
       return;
     }
-
-    setAiFormData((prev) => ({ ...prev, [name]: value }));
+    setRequestForm((prev) => ({ ...prev, [name]: value }));
   }
 
-  async function handleAiSubmit(event) {
+  function handleSimpleForm(setter) {
+    return (event) => {
+      const { name, value } = event.target;
+      setter((prev) => ({ ...prev, [name]: value }));
+    };
+  }
+
+  function handleApprovalChecklist(key, value) {
+    setApprovalForm((prev) => ({
+      ...prev,
+      checklist: { ...prev.checklist, [key]: value }
+    }));
+  }
+
+  async function submitRequestForm(event) {
     event.preventDefault();
     setError('');
     setMessage('');
-
     try {
-      if (aiEditingId) {
-        await updateAiProject(aiEditingId, aiFormData);
-        setMessage('Đã cập nhật dự án AI.');
+      if (selectedInitiativeId) {
+        await updateAiInitiative(selectedInitiativeId, requestForm);
+        setMessage('Đã cập nhật AI Request Form.');
+        await reloadAiWorkspace(filters, selectedInitiativeId);
       } else {
-        await createAiProject(aiFormData);
-        setMessage('Đã thêm dự án AI mới.');
+        const created = await createAiInitiative(requestForm);
+        setMessage('Đã tạo hồ sơ AI mới.');
+        await reloadAiWorkspace(filters, created.id);
       }
-
-      setAiFormData(initialAiForm);
-      setAiEditingId(null);
-
-      await Promise.all([loadEmployees(), loadAiProjects(aiFilters), loadAiDashboard()]);
+      setActiveTab('ai-workflow');
     } catch (err) {
       setError(err.message);
     }
   }
 
-  function handleAiEdit(project) {
-    setAiEditingId(project.id);
-    setAiFormData(normalizeAiProjectForForm(project));
-    setActiveTab('ai-projects');
-  }
-
-  function handleAiCancelEdit() {
-    setAiEditingId(null);
-    setAiFormData(initialAiForm);
-  }
-
-  async function handleAiDelete(projectId) {
-    const ok = window.confirm('Bạn chắc chắn muốn xóa dự án AI này?');
-    if (!ok) {
+  async function submitPhase(action, payload, successMessage) {
+    if (!selectedInitiativeId) {
+      setError('Hãy tạo hoặc chọn một hồ sơ AI trước.');
       return;
     }
-
     setError('');
     setMessage('');
-
     try {
-      await removeAiProject(projectId);
-      setMessage('Đã xóa dự án AI.');
-      await Promise.all([loadAiProjects(aiFilters), loadAiDashboard()]);
+      await action(selectedInitiativeId, payload);
+      setMessage(successMessage);
+      await reloadAiWorkspace(filters, selectedInitiativeId);
     } catch (err) {
       setError(err.message);
     }
   }
 
-  function handleAiFilterChange(event) {
-    const { name, value } = event.target;
-    setAiFilters((prev) => ({ ...prev, [name]: value }));
-  }
-
-  async function applyAiFilters() {
-    setError('');
-    try {
-      await loadAiProjects(aiFilters);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function clearAiFilters() {
-    const reset = { status: '', employeeId: '', receivedFrom: '', receivedTo: '' };
-    setAiFilters(reset);
-    setError('');
-    try {
-      await loadAiProjects(reset);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  const activeTabLabel =
-    tabItems.find((item) => item.id === activeTab)?.label || 'Tuần hiện tại';
+  const activeTabLabel = tabItems.find((item) => item.id === activeTab)?.label || 'Tuần hiện tại';
 
   return (
     <div className="page">
       <header className="header">
-        <h1>Theo dõi công việc và dự án AI</h1>
-        <p>Quản lý đầu việc tuần, dự án AI theo nhân viên và theo dõi dashboard báo cáo.</p>
+        <h1>Website quản lý vòng đời AI doanh nghiệp</h1>
+        <p>
+          Giữ nguyên vận hành công việc tuần và thay module dự án AI cũ bằng workflow 6 giai đoạn:
+          intake, feasibility, design, delivery, approval và operations.
+        </p>
         <div className="header-active-tab">Mục đang xem: {activeTabLabel}</div>
       </header>
 
@@ -430,6 +579,7 @@ export default function App() {
             </button>
           ))}
         </aside>
+
         <main className="content">
           {loading ? <p className="notice">Đang tải dữ liệu...</p> : null}
           {message ? <p className="notice success">{message}</p> : null}
@@ -437,547 +587,1031 @@ export default function App() {
 
           {activeTab === 'week' ? (
             <section className="card">
-          <form className="task-form" onSubmit={handleSubmit}>
-            <div className="grid two">
-              <label>
-                Tên công việc
-                <input
-                  name="title"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                  placeholder="Ví dụ: Hoàn thiện báo giá"
-                  required
-                />
-              </label>
+              <h2>Công việc tuần hiện tại</h2>
+              <form className="stack" onSubmit={handleTaskSubmit}>
+                <div className="grid two">
+                  <label>
+                    Tên công việc
+                    <input name="title" value={taskForm.title} onChange={handleTaskChange} required />
+                  </label>
+                  <label>
+                    Ngày hoàn thành
+                    <input
+                      type="date"
+                      name="completedDate"
+                      value={taskForm.completedDate}
+                      onChange={handleTaskChange}
+                    />
+                  </label>
+                </div>
+                <div className="grid three">
+                  <label>
+                    Ưu tiên
+                    <select name="priority" value={taskForm.priority} onChange={handleTaskChange}>
+                      {priorities.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Trạng thái
+                    <select name="status" value={taskForm.status} onChange={handleTaskChange}>
+                      {statuses.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Phân loại
+                    <input name="category" value={taskForm.category} onChange={handleTaskChange} required />
+                  </label>
+                </div>
+                <label>
+                  Ghi chú
+                  <textarea name="note" rows="3" value={taskForm.note} onChange={handleTaskChange} />
+                </label>
+                <div className="actions">
+                  <button type="submit" className="btn primary">
+                    {editingTaskId ? 'Lưu chỉnh sửa' : 'Thêm công việc'}
+                  </button>
+                  {editingTaskId ? (
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        setEditingTaskId(null);
+                        setTaskForm(initialTaskForm);
+                      }}
+                    >
+                      Hủy
+                    </button>
+                  ) : null}
+                  <button type="button" className="btn warning" onClick={handleCloseWeek}>
+                    Chốt tuần
+                  </button>
+                </div>
+              </form>
 
-              <label>
-                Ngày hoàn thành
-                <input name="completedDate" type="date" value={formData.completedDate} onChange={handleInputChange} />
-              </label>
-            </div>
+              <div className="summary">
+                <span>Tổng: {weeklySummary.total}</span>
+                <span>Hoàn thành: {weeklySummary.done}</span>
+                <span>Đang làm: {weeklySummary.inProgress}</span>
+                <span>Tạm dừng: {weeklySummary.paused}</span>
+                <span>Chưa làm: {weeklySummary.todo}</span>
+              </div>
 
-            <div className="grid three">
-              <label>
-                Ưu tiên
-                <select name="priority" value={formData.priority} onChange={handleInputChange}>
-                  {priorities.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Trạng thái
-                <select name="status" value={formData.status} onChange={handleInputChange}>
-                  {statuses.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Loại
-                <input name="category" value={formData.category} onChange={handleInputChange} placeholder="VD: Dev, họp, hỗ trợ" required />
-              </label>
-            </div>
-
-            <label>
-              Ghi chú
-              <textarea name="note" rows="3" value={formData.note} onChange={handleInputChange} />
-            </label>
-
-            <div className="actions">
-              <button type="submit" className="btn primary">
-                {editingId ? 'Lưu chỉnh sửa' : 'Thêm công việc'}
-              </button>
-
-              {editingId ? (
-                <button type="button" className="btn" onClick={handleCancelEdit}>
-                  Hủy
-                </button>
-              ) : null}
-
-              <button type="button" className="btn warning" onClick={handleCloseWeek}>
-                Chốt tuần
-              </button>
-            </div>
-          </form>
-
-          <div className="summary">
-            <span>Tổng: {summary.total}</span>
-            <span>Hoàn thành: {summary.done}</span>
-            <span>Đang làm: {summary.inProgress}</span>
-            <span>Tạm dừng: {summary.blocked}</span>
-            <span>Chưa làm: {summary.todo}</span>
-          </div>
-
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>STT</th>
-                  <th>Tên công việc</th>
-                  <th>Ngày hoàn thành</th>
-                  <th>Ưu tiên</th>
-                  <th>Trạng thái</th>
-                  <th>Loại</th>
-                  <th>Ghi chú</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="empty">
-                      Chưa có công việc nào cho tuần hiện tại.
-                    </td>
-                  </tr>
-                ) : (
-                  tasks.map((task, index) => (
-                    <tr key={task.id}>
-                      <td>{index + 1}</td>
-                      <td>{task.title}</td>
-                      <td>{formatDate(task.completed_date)}</td>
-                      <td>
-                        <span className={`badge ${getPriorityClass(task.priority)}`}>{task.priority}</span>
-                      </td>
-                      <td>
-                        <span className={`badge ${getTaskStatusClass(task.status)}`}>{task.status}</span>
-                      </td>
-                      <td>{task.category}</td>
-                      <td>{task.note || '-'}</td>
-                      <td>
-                        <div className="row-actions">
-                          <button type="button" className="small icon-btn" aria-label="Sửa" title="Sửa" onClick={() => handleEdit(task)}>
-                            <EditIcon />
-                          </button>
-                          <button type="button" className="small danger icon-btn" aria-label="Xóa" title="Xóa" onClick={() => handleDelete(task.id)}>
-                            <DeleteIcon />
-                          </button>
-                        </div>
-                      </td>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Công việc</th>
+                      <th>Ngày</th>
+                      <th>Ưu tiên</th>
+                      <th>Trạng thái</th>
+                      <th>Phân loại</th>
+                      <th>Ghi chú</th>
+                      <th>Thao tác</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {tasks.length ? (
+                      tasks.map((task) => (
+                        <tr key={task.id}>
+                          <td>{task.title}</td>
+                          <td>{formatDate(task.completed_date) || '-'}</td>
+                          <td>{task.priority}</td>
+                          <td>{task.status}</td>
+                          <td>{task.category}</td>
+                          <td>{task.note || '-'}</td>
+                          <td>
+                            <div className="actions compact">
+                              <button
+                                type="button"
+                                className="btn"
+                                onClick={() => {
+                                  setEditingTaskId(task.id);
+                                  setTaskForm(normalizeTaskForForm(task));
+                                }}
+                              >
+                                Sửa
+                              </button>
+                              <button type="button" className="btn danger" onClick={() => handleDeleteTask(task.id)}>
+                                Xóa
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="7" className="empty-cell">
+                          Chưa có công việc tuần.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </section>
           ) : null}
 
           {activeTab === 'history' ? (
-            <section className="card">
-          <div className="history-layout">
-            <div>
-              <h2>Các tuần đã chốt</h2>
-              <div className="report-list">
-                {reports.length === 0 ? (
-                  <p>Chưa có báo cáo nào.</p>
-                ) : (
-                  reports.map((report) => (
-                    <button key={report.id} type="button" className="report-item" onClick={() => handleOpenReport(report.id)}>
-                      <strong>{report.week_label}</strong>
-                      <span>{new Date(report.exported_at).toLocaleString('vi-VN')}</span>
-                      <span>
-                        {report.completed_tasks}/{report.total_tasks} hoàn thành
-                      </span>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div>
-              <h2>Chi tiết tuần</h2>
-              {!selectedReport ? (
-                <p>Chọn một tuần để xem chi tiết.</p>
-              ) : (
-                <div className="report-detail">
-                  <p>
-                    <strong>Tuần:</strong> {selectedReport.week_label}
-                  </p>
-                  <p>
-                    <strong>Xuất lúc:</strong> {new Date(selectedReport.exported_at).toLocaleString('vi-VN')}
-                  </p>
-                  <p>
-                    <strong>Tổng công việc:</strong> {selectedReport.total_tasks}
-                  </p>
-                  <p>
-                    <strong>Trạng thái:</strong> Hoàn thành {selectedReport.completed_tasks} | Đang làm{' '}
-                    {selectedReport.in_progress_tasks} | Tạm dừng {selectedReport.blocked_tasks} | Chưa làm{' '}
-                    {selectedReport.todo_tasks}
-                  </p>
-                  <div className="table-wrap">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>STT</th>
-                          <th>Tên công việc</th>
-                          <th>Ngày hoàn thành</th>
-                          <th>Ưu tiên</th>
-                          <th>Trạng thái</th>
-                          <th>Loại</th>
-                          <th>Ghi chú</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedReport.tasks.length === 0 ? (
-                          <tr>
-                            <td colSpan="7" className="empty">
-                              Tuần này không có công việc.
+            <section className="split-panel">
+              <article className="card">
+                <h2>Lịch sử chốt tuần</h2>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Tuần</th>
+                        <th>Ngày export</th>
+                        <th>Tổng task</th>
+                        <th>Mở</th>
+                        <th>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reports.length ? (
+                        reports.map((report) => (
+                          <tr key={report.id}>
+                            <td>{report.week_label}</td>
+                            <td>{formatDate(report.exported_at)}</td>
+                            <td>{report.total_tasks}</td>
+                            <td>{report.todo_tasks + report.in_progress_tasks + report.blocked_tasks}</td>
+                            <td>
+                              <button type="button" className="btn" onClick={() => handleOpenReport(report.id)}>
+                                Xem chi tiết
+                              </button>
                             </td>
                           </tr>
-                        ) : (
-                          selectedReport.tasks.map((task, index) => (
-                            <tr key={`${task.task_id}-${index}`}>
-                              <td>{index + 1}</td>
-                              <td>{task.title}</td>
-                              <td>{formatDate(task.completed_date)}</td>
-                              <td>
-                                <span className={`badge ${getPriorityClass(task.priority)}`}>{task.priority}</span>
-                              </td>
-                              <td>
-                                <span className={`badge ${getTaskStatusClass(task.status)}`}>{task.status}</span>
-                              </td>
-                              <td>{task.category}</td>
-                              <td>{task.note || '-'}</td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" className="empty-cell">
+                            Chưa có lịch sử chốt tuần.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-              )}
-            </div>
-          </div>
+              </article>
+
+              <article className="card">
+                <h2>Chi tiết báo cáo</h2>
+                {selectedReport ? (
+                  <>
+                    <div className="summary">
+                      <span>{selectedReport.week_label}</span>
+                      <span>Hoàn thành: {selectedReport.completed_tasks}</span>
+                      <span>Đang làm: {selectedReport.in_progress_tasks}</span>
+                      <span>Tạm dừng: {selectedReport.blocked_tasks}</span>
+                    </div>
+                    <div className="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Công việc</th>
+                            <th>Ngày</th>
+                            <th>Ưu tiên</th>
+                            <th>Trạng thái</th>
+                            <th>Phân loại</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedReport.tasks.map((task) => (
+                            <tr key={`${selectedReport.id}-${task.task_id}`}>
+                              <td>{task.title}</td>
+                              <td>{formatDate(task.completed_date) || '-'}</td>
+                              <td>{task.priority}</td>
+                              <td>{task.status}</td>
+                              <td>{task.category}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : (
+                  <p className="empty-state">Chọn một báo cáo để xem snapshot công việc đã chốt.</p>
+                )}
+              </article>
             </section>
           ) : null}
 
-          {activeTab === 'ai-projects' ? (
-            <section className="card">
-          <h2>Dự án AI</h2>
+          {activeTab === 'ai-workflow' ? (
+            <section className="ai-layout">
+              <article className="card ai-sidebar">
+                <div className="section-head">
+                  <h2>Hồ sơ AI</h2>
+                  <button
+                    type="button"
+                    className="btn primary"
+                    onClick={() => {
+                      setSelectedInitiativeId(null);
+                      setInitiativeDetail(null);
+                      resetAiForms();
+                    }}
+                  >
+                    Hồ sơ mới
+                  </button>
+                </div>
 
-          <form className="task-form" onSubmit={handleAiSubmit}>
-            <div className="grid three">
-              <label>
-                Ngày nhận dự án
-                <input name="receivedDate" type="date" value={aiFormData.receivedDate} onChange={handleAiInputChange} required />
-              </label>
-              <label>
-                Người đề xuất dự án
-                <input name="proposerName" value={aiFormData.proposerName} onChange={handleAiInputChange} required />
-              </label>
-              <label>
-                Trạng thái
-                <select name="status" value={aiFormData.status} onChange={handleAiInputChange}>
-                  {aiStatuses.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+                <div className="grid two">
+                  <label>
+                    Phase
+                    <select name="stage" value={filters.stage} onChange={handleSimpleForm(setFilters)}>
+                      <option value="">Tất cả</option>
+                      {stageItems.map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Priority
+                    <select name="priority" value={filters.priority} onChange={handleSimpleForm(setFilters)}>
+                      <option value="">Tất cả</option>
+                      {priorities.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="grid two">
+                  <label>
+                    Owner
+                    <select
+                      name="ownerEmployeeId"
+                      value={filters.ownerEmployeeId}
+                      onChange={handleSimpleForm(setFilters)}
+                    >
+                      <option value="">Tất cả</option>
+                      {employees.map((employee) => (
+                        <option key={employee.id} value={employee.id}>
+                          {employee.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Gate decision
+                    <select name="gateDecision" value={filters.gateDecision} onChange={handleSimpleForm(setFilters)}>
+                      <option value="">Tất cả</option>
+                      <option value="Go">Go</option>
+                      <option value="Conditional Go">Conditional Go</option>
+                      <option value="No-Go">No-Go</option>
+                    </select>
+                  </label>
+                </div>
+                <div className="grid two">
+                  <label>
+                    Từ ngày
+                    <input type="date" name="requestedFrom" value={filters.requestedFrom} onChange={handleSimpleForm(setFilters)} />
+                  </label>
+                  <label>
+                    Đến ngày
+                    <input type="date" name="requestedTo" value={filters.requestedTo} onChange={handleSimpleForm(setFilters)} />
+                  </label>
+                </div>
+                <div className="actions">
+                  <button type="button" className="btn" onClick={() => reloadAiWorkspace(filters, selectedInitiativeId)}>
+                    Áp dụng filter
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      const reset = {
+                        stage: '',
+                        priority: '',
+                        ownerEmployeeId: '',
+                        gateDecision: '',
+                        requestedFrom: '',
+                        requestedTo: ''
+                      };
+                      setFilters(reset);
+                      reloadAiWorkspace(reset, selectedInitiativeId);
+                    }}
+                  >
+                    Xóa filter
+                  </button>
+                </div>
 
-            <label>
-              Mô tả dự án
-              <textarea name="description" rows="3" value={aiFormData.description} onChange={handleAiInputChange} required />
-            </label>
-
-            <div className="grid two">
-              <label>
-                Chọn nhân viên đã lưu
-                <select name="employeeId" value={aiFormData.employeeId} onChange={handleAiInputChange}>
-                  <option value="">-- Chọn nhân viên --</option>
-                  {employees.map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Hoặc nhập nhân viên mới
-                <input
-                  name="employeeName"
-                  value={aiFormData.employeeName}
-                  onChange={handleAiInputChange}
-                  placeholder="Nhập tên nếu chưa có trong danh sách"
-                />
-              </label>
-            </div>
-
-            <div className="grid five">
-              <label>
-                Ngày bắt đầu
-                <input name="startDate" type="date" value={aiFormData.startDate} onChange={handleAiInputChange} />
-              </label>
-              <label>
-                Ngày dự kiến kết thúc
-                <input name="targetEndDate" type="date" value={aiFormData.targetEndDate} onChange={handleAiInputChange} />
-              </label>
-              <label>
-                Ngày kết thúc thực tế
-                <input name="actualEndDate" type="date" value={aiFormData.actualEndDate} onChange={handleAiInputChange} />
-              </label>
-              <label>
-                Thời gian dự kiến (ngày)
-                <input name="estimatedDays" type="number" min="0" value={aiFormData.estimatedDays} onChange={handleAiInputChange} />
-              </label>
-              <label>
-                Thời gian thực tế (ngày)
-                <input name="actualDays" type="number" min="0" value={aiFormData.actualDays} onChange={handleAiInputChange} />
-              </label>
-            </div>
-
-            <div className="actions">
-              <button type="submit" className="btn primary">
-                {aiEditingId ? 'Lưu dự án AI' : 'Thêm dự án AI'}
-              </button>
-              {aiEditingId ? (
-                <button type="button" className="btn" onClick={handleAiCancelEdit}>
-                  Hủy
-                </button>
-              ) : null}
-            </div>
-          </form>
-
-          <div className="filters">
-            <h3>Bộ lọc dự án AI</h3>
-            <div className="grid four">
-              <label>
-                Trạng thái
-                <select name="status" value={aiFilters.status} onChange={handleAiFilterChange}>
-                  <option value="">Tất cả</option>
-                  {aiStatuses.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Nhân viên
-                <select name="employeeId" value={aiFilters.employeeId} onChange={handleAiFilterChange}>
-                  <option value="">Tất cả</option>
-                  {employees.map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Ngày nhận từ
-                <input type="date" name="receivedFrom" value={aiFilters.receivedFrom} onChange={handleAiFilterChange} />
-              </label>
-              <label>
-                Ngày nhận đến
-                <input type="date" name="receivedTo" value={aiFilters.receivedTo} onChange={handleAiFilterChange} />
-              </label>
-            </div>
-            <div className="actions">
-              <button type="button" className="btn" onClick={applyAiFilters}>
-                Áp dụng lọc
-              </button>
-              <button type="button" className="btn" onClick={clearAiFilters}>
-                Xóa lọc
-              </button>
-            </div>
-          </div>
-
-          <h3>Đang theo dõi</h3>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>STT</th>
-                  <th>Ngày nhận</th>
-                  <th>Người đề xuất</th>
-                  <th>Mô tả</th>
-                  <th>Nhân viên</th>
-                  <th>Trạng thái</th>
-                  <th>Thời gian (ngày)</th>
-                  <th>Mốc thời gian</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeAiProjects.length === 0 ? (
-                  <tr>
-                    <td colSpan="9" className="empty">
-                      Không có dự án AI đang theo dõi.
-                    </td>
-                  </tr>
-                ) : (
-                  activeAiProjects.map((project, index) => (
-                    <tr key={project.id}>
-                      <td>{index + 1}</td>
-                      <td>{formatDate(project.received_date)}</td>
-                      <td>{project.proposer_name}</td>
-                      <td>{project.description}</td>
-                      <td>{project.employee_name}</td>
-                      <td>
-                        <span className={`badge ${getAiStatusClass(project.status)}`}>{project.status}</span>
-                      </td>
-                      <td>
-                        Dự kiến: {project.estimated_days ?? '-'}<br />
-                        Thực tế: {project.actual_days ?? '-'}
-                      </td>
-                      <td>
-                        BĐ: {formatDate(project.start_date)}<br />
-                        DKKT: {formatDate(project.target_end_date)}<br />
-                        KT: {formatDate(project.actual_end_date)}
-                      </td>
-                      <td>
-                        <div className="row-actions">
-                          <button type="button" className="small icon-btn" aria-label="Sửa" title="Sửa" onClick={() => handleAiEdit(project)}>
-                            <EditIcon />
-                          </button>
-                          <button type="button" className="small danger icon-btn" aria-label="Xóa" title="Xóa" onClick={() => handleAiDelete(project.id)}>
-                            <DeleteIcon />
-                          </button>
+                <div className="initiative-list">
+                  {aiInitiatives.length ? (
+                    aiInitiatives.map((initiative) => (
+                      <button
+                        key={initiative.id}
+                        type="button"
+                        className={selectedInitiativeId === initiative.id ? 'initiative-item active' : 'initiative-item'}
+                        onClick={() => loadInitiativeDetail(initiative.id)}
+                      >
+                        <strong>{initiative.title}</strong>
+                        <span>{initiative.department}</span>
+                        <div className="pill-row">
+                          <StagePill stage={initiative.current_stage} />
+                          <span className="mini-pill">{initiative.priority}</span>
+                          {initiative.gate_decision ? <span className="mini-pill">{initiative.gate_decision}</span> : null}
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                        <small>
+                          {initiative.owner_name || 'Chưa phân công'} · deadline {formatDate(initiative.target_deadline) || '-'}
+                        </small>
+                      </button>
+                    ))
+                  ) : (
+                    <p className="empty-state">Chưa có hồ sơ phù hợp bộ lọc.</p>
+                  )}
+                </div>
+              </article>
 
-          <h3>Đã hoàn thành</h3>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>STT</th>
-                  <th>Ngày nhận</th>
-                  <th>Người đề xuất</th>
-                  <th>Mô tả</th>
-                  <th>Nhân viên</th>
-                  <th>Trạng thái</th>
-                  <th>Thời gian (ngày)</th>
-                  <th>Mốc thời gian</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {completedAiProjects.length === 0 ? (
-                  <tr>
-                    <td colSpan="9" className="empty">
-                      Chưa có dự án AI hoàn thành.
-                    </td>
-                  </tr>
-                ) : (
-                  completedAiProjects.map((project, index) => (
-                    <tr key={project.id}>
-                      <td>{index + 1}</td>
-                      <td>{formatDate(project.received_date)}</td>
-                      <td>{project.proposer_name}</td>
-                      <td>{project.description}</td>
-                      <td>{project.employee_name}</td>
-                      <td>
-                        <span className={`badge ${getAiStatusClass(project.status)}`}>{project.status}</span>
-                      </td>
-                      <td>
-                        Dự kiến: {project.estimated_days ?? '-'}<br />
-                        Thực tế: {project.actual_days ?? '-'}
-                      </td>
-                      <td>
-                        BĐ: {formatDate(project.start_date)}<br />
-                        DKKT: {formatDate(project.target_end_date)}<br />
-                        KT: {formatDate(project.actual_end_date)}
-                      </td>
-                      <td>
-                        <div className="row-actions">
-                          <button type="button" className="small icon-btn" aria-label="Sửa" title="Sửa" onClick={() => handleAiEdit(project)}>
-                            <EditIcon />
-                          </button>
-                          <button type="button" className="small danger icon-btn" aria-label="Xóa" title="Xóa" onClick={() => handleAiDelete(project.id)}>
-                            <DeleteIcon />
-                          </button>
+              <article className="content">
+                <section className="card">
+                  <div className="section-head">
+                    <div>
+                      <h2>{selectedInitiativeId ? 'Chi tiết hồ sơ AI' : 'Tạo hồ sơ AI mới'}</h2>
+                      <p className="subtle">
+                        AI Request Form là điểm khởi đầu bắt buộc. Sau khi lưu, các phase còn lại sẽ bám vào cùng một hồ sơ trung tâm.
+                      </p>
+                    </div>
+                    {initiativeDetail ? <StagePill stage={initiativeDetail.current_stage} /> : null}
+                  </div>
+
+                  <div className="stepper">
+                    {stageItems.slice(0, 6).map(([value, label]) => (
+                      <div
+                        key={value}
+                        className={
+                          initiativeDetail?.current_stage === value
+                            ? 'step active'
+                            : initiativeDetail && stageItems.findIndex((item) => item[0] === initiativeDetail.current_stage) >
+                              stageItems.findIndex((item) => item[0] === value)
+                              ? 'step done'
+                              : 'step'
+                        }
+                      >
+                        <strong>{label}</strong>
+                        <span>{value}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <form className="stack" onSubmit={submitRequestForm}>
+                    <div className="grid three">
+                      <label>
+                        Tên dự án
+                        <input name="title" value={requestForm.title} onChange={handleRequestChange} required />
+                      </label>
+                      <label>
+                        Bộ phận đề xuất
+                        <input name="department" value={requestForm.department} onChange={handleRequestChange} required />
+                      </label>
+                      <label>
+                        Người đề xuất
+                        <input name="proposerName" value={requestForm.proposerName} onChange={handleRequestChange} required />
+                      </label>
+                    </div>
+                    <div className="grid four">
+                      <label>
+                        Owner hiện có
+                        <select
+                          name="ownerEmployeeId"
+                          value={requestForm.ownerEmployeeId}
+                          onChange={handleRequestChange}
+                        >
+                          <option value="">Tạo nhanh bằng tên mới</option>
+                          {employees.map((employee) => (
+                            <option key={employee.id} value={employee.id}>
+                              {employee.name} {employee.role ? `(${employee.role})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Owner mới
+                        <input
+                          name="ownerEmployeeName"
+                          value={requestForm.ownerEmployeeName}
+                          onChange={handleRequestChange}
+                          placeholder="Dùng khi chưa có trong danh sách"
+                        />
+                      </label>
+                      <label>
+                        Vai trò owner
+                        <input name="ownerEmployeeRole" value={requestForm.ownerEmployeeRole} onChange={handleRequestChange} />
+                      </label>
+                      <label>
+                        Ưu tiên
+                        <select name="priority" value={requestForm.priority} onChange={handleRequestChange}>
+                          {priorities.map((item) => (
+                            <option key={item} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="grid four">
+                      <label>
+                        Ngày đề xuất
+                        <input type="date" name="requestedAt" value={requestForm.requestedAt} onChange={handleRequestChange} required />
+                      </label>
+                      <label>
+                        Deadline mong muốn
+                        <input type="date" name="targetDeadline" value={requestForm.targetDeadline} onChange={handleRequestChange} />
+                      </label>
+                      <label>
+                        Deadline ARF
+                        <input type="date" name="desiredDeadline" value={requestForm.desiredDeadline} onChange={handleRequestChange} />
+                      </label>
+                      <label>
+                        Dữ liệu sẵn có
+                        <select
+                          name="availableDataStatus"
+                          value={requestForm.availableDataStatus}
+                          onChange={handleRequestChange}
+                        >
+                          <option value="Có">Có</option>
+                          <option value="Một phần">Một phần</option>
+                          <option value="Không">Không</option>
+                        </select>
+                      </label>
+                    </div>
+                    <div className="grid two">
+                      <label>
+                        Mô tả vấn đề
+                        <textarea name="problemStatement" rows="4" value={requestForm.problemStatement} onChange={handleRequestChange} />
+                      </label>
+                      <label>
+                        Pain points
+                        <textarea name="painPoints" rows="4" value={requestForm.painPoints} onChange={handleRequestChange} />
+                      </label>
+                    </div>
+                    <div className="grid two">
+                      <label>
+                        Mục tiêu kỳ vọng
+                        <textarea name="objective" rows="3" value={requestForm.objective} onChange={handleRequestChange} />
+                      </label>
+                      <label>
+                        KPI đo lường
+                        <textarea name="successKpi" rows="3" value={requestForm.successKpi} onChange={handleRequestChange} />
+                      </label>
+                    </div>
+                    <div className="grid three">
+                      <label>
+                        Người dùng cuối
+                        <input name="endUsers" value={requestForm.endUsers} onChange={handleRequestChange} />
+                      </label>
+                      <label>
+                        Tần suất sử dụng
+                        <input name="usageFrequency" value={requestForm.usageFrequency} onChange={handleRequestChange} />
+                      </label>
+                      <label>
+                        Ngân sách ước tính
+                        <input name="budgetEstimate" value={requestForm.budgetEstimate} onChange={handleRequestChange} />
+                      </label>
+                    </div>
+                    <label>
+                      Ràng buộc thời gian và ngân sách
+                      <textarea
+                        name="timeBudgetConstraints"
+                        rows="3"
+                        value={requestForm.timeBudgetConstraints}
+                        onChange={handleRequestChange}
+                      />
+                    </label>
+                    <label>
+                      Chi tiết dữ liệu sẵn có
+                      <textarea
+                        name="availableDataDetails"
+                        rows="3"
+                        value={requestForm.availableDataDetails}
+                        onChange={handleRequestChange}
+                      />
+                    </label>
+                    <label>
+                      Ghi chú
+                      <textarea name="notes" rows="3" value={requestForm.notes} onChange={handleRequestChange} />
+                    </label>
+                    <div className="actions">
+                      <button type="submit" className="btn primary">
+                        {selectedInitiativeId ? 'Lưu ARF' : 'Tạo hồ sơ AI'}
+                      </button>
+                    </div>
+                  </form>
+                </section>
+
+                <section className="card">
+                  <h3>Giai đoạn 2: Đánh giá khả thi</h3>
+                  <div className="grid four">
+                    {[
+                      ['dataScore', 'Dữ liệu'],
+                      ['technicalScore', 'Kỹ thuật'],
+                      ['businessScore', 'Kinh doanh'],
+                      ['complianceScore', 'Tuân thủ']
+                    ].map(([field, label]) => (
+                      <label key={field}>
+                        {label}
+                        <select name={field} value={feasibilityForm[field]} onChange={handleSimpleForm(setFeasibilityForm)}>
+                          {[1, 2, 3, 4, 5].map((score) => (
+                            <option key={score} value={score}>
+                              {score}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="grid two">
+                    <label>
+                      Đánh giá dữ liệu
+                      <textarea name="dataSummary" rows="3" value={feasibilityForm.dataSummary} onChange={handleSimpleForm(setFeasibilityForm)} />
+                    </label>
+                    <label>
+                      Đánh giá kỹ thuật
+                      <textarea
+                        name="technicalSummary"
+                        rows="3"
+                        value={feasibilityForm.technicalSummary}
+                        onChange={handleSimpleForm(setFeasibilityForm)}
+                      />
+                    </label>
+                  </div>
+                  <div className="grid two">
+                    <label>
+                      Đánh giá kinh doanh
+                      <textarea
+                        name="businessSummary"
+                        rows="3"
+                        value={feasibilityForm.businessSummary}
+                        onChange={handleSimpleForm(setFeasibilityForm)}
+                      />
+                    </label>
+                    <label>
+                      Đánh giá tuân thủ
+                      <textarea
+                        name="complianceSummary"
+                        rows="3"
+                        value={feasibilityForm.complianceSummary}
+                        onChange={handleSimpleForm(setFeasibilityForm)}
+                      />
+                    </label>
+                  </div>
+                  <div className="actions">
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() => submitPhase(updateFeasibility, feasibilityForm, 'Đã lưu đánh giá khả thi.')}
+                    >
+                      Lưu feasibility
+                    </button>
+                  </div>
+
+                  <div className="inline-card">
+                    <h4>Gate Review</h4>
+                    <div className="grid three">
+                      <label>
+                        Quyết định
+                        <select name="decision" value={gateForm.decision} onChange={handleSimpleForm(setGateForm)}>
+                          <option value="Go">Go</option>
+                          <option value="Conditional Go">Conditional Go</option>
+                          <option value="No-Go">No-Go</option>
+                        </select>
+                      </label>
+                      <label>
+                        Reviewed by
+                        <input name="reviewedBy" value={gateForm.reviewedBy} onChange={handleSimpleForm(setGateForm)} />
+                      </label>
+                      <label>
+                        Điều kiện Conditional Go
+                        <textarea
+                          name="conditionalItems"
+                          rows="3"
+                          value={gateForm.conditionalItems}
+                          onChange={handleSimpleForm(setGateForm)}
+                          placeholder="Mỗi dòng là một điều kiện"
+                        />
+                      </label>
+                    </div>
+                    <div className="actions">
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() =>
+                          submitPhase(
+                            submitGateReview,
+                            {
+                              ...gateForm,
+                              conditionalItems: gateForm.conditionalItems
+                                .split('\n')
+                                .map((item) => item.trim())
+                                .filter(Boolean)
+                            },
+                            'Đã cập nhật gate review.'
+                          )
+                        }
+                      >
+                        Gửi gate review
+                      </button>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="card">
+                  <h3>Giai đoạn 3: Thiết kế giải pháp</h3>
+                  <div className="grid three">
+                    <label>
+                      Phương án
+                      <select name="solutionOption" value={solutionForm.solutionOption} onChange={handleSimpleForm(setSolutionForm)}>
+                        {solutionOptions.map((item) => (
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      Nhân sự
+                      <textarea name="staffingPlan" rows="3" value={solutionForm.staffingPlan} onChange={handleSimpleForm(setSolutionForm)} />
+                    </label>
+                    <label>
+                      Risk & mitigation
+                      <textarea
+                        name="risksAndMitigations"
+                        rows="3"
+                        value={solutionForm.risksAndMitigations}
+                        onChange={handleSimpleForm(setSolutionForm)}
+                      />
+                    </label>
+                  </div>
+                  <div className="grid two">
+                    <label>
+                      Kiến trúc hệ thống
+                      <textarea
+                        name="architectureSummary"
+                        rows="4"
+                        value={solutionForm.architectureSummary}
+                        onChange={handleSimpleForm(setSolutionForm)}
+                      />
+                    </label>
+                    <label>
+                      Yêu cầu tích hợp
+                      <textarea
+                        name="integrationRequirements"
+                        rows="4"
+                        value={solutionForm.integrationRequirements}
+                        onChange={handleSimpleForm(setSolutionForm)}
+                      />
+                    </label>
+                  </div>
+                  <div className="grid two">
+                    <label>
+                      Security layer
+                      <textarea
+                        name="securityRequirements"
+                        rows="4"
+                        value={solutionForm.securityRequirements}
+                        onChange={handleSimpleForm(setSolutionForm)}
+                      />
+                    </label>
+                    <label>
+                      Monitoring plan
+                      <textarea
+                        name="monitoringPlan"
+                        rows="4"
+                        value={solutionForm.monitoringPlan}
+                        onChange={handleSimpleForm(setSolutionForm)}
+                      />
+                    </label>
+                  </div>
+                  <label>
+                    Milestone plan
+                    <textarea name="milestonePlan" rows="3" value={solutionForm.milestonePlan} onChange={handleSimpleForm(setSolutionForm)} />
+                  </label>
+                  <div className="actions">
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() => submitPhase(updateSolutionDesign, solutionForm, 'Đã lưu solution design.')}
+                    >
+                      Lưu solution design
+                    </button>
+                  </div>
+                </section>
+
+                <section className="card">
+                  <h3>Giai đoạn 4: Triển khai & thử nghiệm</h3>
+                  <div className="grid five">
+                    {[
+                      ['pocStatus', 'PoC'],
+                      ['modelTestStatus', 'Model test'],
+                      ['uatStatus', 'UAT'],
+                      ['securityTestStatus', 'Security test'],
+                      ['modelCardStatus', 'Model card']
+                    ].map(([field, label]) => (
+                      <label key={field}>
+                        {label}
+                        <select name={field} value={deliveryForm[field]} onChange={handleSimpleForm(setDeliveryForm)}>
+                          {deliveryStatuses.map((item) => (
+                            <option key={item} value={item}>
+                              {item}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                  <div className="grid two">
+                    <label>
+                      Metrics
+                      <textarea
+                        name="performanceMetrics"
+                        rows="3"
+                        value={deliveryForm.performanceMetrics}
+                        onChange={handleSimpleForm(setDeliveryForm)}
+                      />
+                    </label>
+                    <label>
+                      Pilot feedback
+                      <textarea
+                        name="pilotFeedback"
+                        rows="3"
+                        value={deliveryForm.pilotFeedback}
+                        onChange={handleSimpleForm(setDeliveryForm)}
+                      />
+                    </label>
+                  </div>
+                  <label>
+                    Delivery notes
+                    <textarea name="deliveryNotes" rows="3" value={deliveryForm.deliveryNotes} onChange={handleSimpleForm(setDeliveryForm)} />
+                  </label>
+                  <div className="actions">
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() => submitPhase(updateDelivery, deliveryForm, 'Đã lưu tiến độ delivery.')}
+                    >
+                      Lưu delivery
+                    </button>
+                  </div>
+                </section>
+
+                <section className="card">
+                  <h3>Giai đoạn 5: Phê duyệt & production checklist</h3>
+                  <div className="grid four">
+                    <CheckboxField
+                      label="AI Governance Board"
+                      checked={approvalForm.governanceApproved}
+                      onChange={(value) => setApprovalForm((prev) => ({ ...prev, governanceApproved: value }))}
+                    />
+                    <CheckboxField
+                      label="Tech Lead / Architecture"
+                      checked={approvalForm.techApproved}
+                      onChange={(value) => setApprovalForm((prev) => ({ ...prev, techApproved: value }))}
+                    />
+                    <CheckboxField
+                      label="Legal / DPO"
+                      checked={approvalForm.legalApproved}
+                      onChange={(value) => setApprovalForm((prev) => ({ ...prev, legalApproved: value }))}
+                    />
+                    <CheckboxField
+                      label="Business Owner"
+                      checked={approvalForm.businessApproved}
+                      onChange={(value) => setApprovalForm((prev) => ({ ...prev, businessApproved: value }))}
+                    />
+                  </div>
+
+                  <div className="checklist-grid">
+                    {[
+                      ['performance', 'Đạt ngưỡng hiệu năng'],
+                      ['security', 'Security test đạt'],
+                      ['documentation', 'Tài liệu hoàn tất'],
+                      ['rollback', 'Kế hoạch rollback'],
+                      ['monitoring', 'Monitoring & alerting'],
+                      ['training', 'Đào tạo người dùng'],
+                      ['sla', 'SLA/SLO rõ ràng'],
+                      ['budget', 'Ngân sách vận hành'],
+                      ['incident', 'Incident response']
+                    ].map(([key, label]) => (
+                      <CheckboxField
+                        key={key}
+                        label={label}
+                        checked={approvalForm.checklist[key]}
+                        onChange={(value) => handleApprovalChecklist(key, value)}
+                      />
+                    ))}
+                  </div>
+
+                  <CheckboxField
+                    label="Ready for Go-Live"
+                    checked={approvalForm.readyForGoLive}
+                    onChange={(value) => setApprovalForm((prev) => ({ ...prev, readyForGoLive: value }))}
+                  />
+
+                  <label>
+                    Approval notes
+                    <textarea name="approvalNotes" rows="3" value={approvalForm.approvalNotes} onChange={handleSimpleForm(setApprovalForm)} />
+                  </label>
+                  <div className="actions">
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() => submitPhase(updateApprovals, approvalForm, 'Đã lưu approval workflow.')}
+                    >
+                      Lưu approvals
+                    </button>
+                  </div>
+                </section>
+
+                <section className="card">
+                  <h3>Giai đoạn 6: Triển khai & vận hành</h3>
+                  <div className="grid two">
+                    <label>
+                      Rollout strategy
+                      <select name="rolloutStrategy" value={operationsForm.rolloutStrategy} onChange={handleSimpleForm(setOperationsForm)}>
+                        {rolloutStrategies.map((item) => (
+                          <option key={item} value={item}>
+                            {item}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      SLA/SLO
+                      <textarea name="slaSlo" rows="3" value={operationsForm.slaSlo} onChange={handleSimpleForm(setOperationsForm)} />
+                    </label>
+                  </div>
+                  <div className="grid two">
+                    <label>
+                      Alerting setup
+                      <textarea name="alertingSetup" rows="3" value={operationsForm.alertingSetup} onChange={handleSimpleForm(setOperationsForm)} />
+                    </label>
+                    <label>
+                      KPI impact
+                      <textarea name="kpiImpact" rows="3" value={operationsForm.kpiImpact} onChange={handleSimpleForm(setOperationsForm)} />
+                    </label>
+                  </div>
+                  <div className="grid three">
+                    <label>
+                      Incident log
+                      <textarea name="incidentLog" rows="3" value={operationsForm.incidentLog} onChange={handleSimpleForm(setOperationsForm)} />
+                    </label>
+                    <label>
+                      Adoption plan
+                      <textarea name="adoptionPlan" rows="3" value={operationsForm.adoptionPlan} onChange={handleSimpleForm(setOperationsForm)} />
+                    </label>
+                    <label>
+                      Continuous improvement
+                      <textarea
+                        name="continuousImprovement"
+                        rows="3"
+                        value={operationsForm.continuousImprovement}
+                        onChange={handleSimpleForm(setOperationsForm)}
+                      />
+                    </label>
+                  </div>
+                  <label>
+                    Operational notes
+                    <textarea
+                      name="operationalNotes"
+                      rows="3"
+                      value={operationsForm.operationalNotes}
+                      onChange={handleSimpleForm(setOperationsForm)}
+                    />
+                  </label>
+                  <div className="actions">
+                    <button
+                      type="button"
+                      className="btn primary"
+                      onClick={() => submitPhase(updateOperations, operationsForm, 'Đã lưu hồ sơ vận hành.')}
+                    >
+                      Lưu operations
+                    </button>
+                  </div>
+                </section>
+
+                <section className="card">
+                  <h3>Stage history</h3>
+                  {initiativeDetail?.stageHistory?.length ? (
+                    <div className="timeline">
+                      {initiativeDetail.stageHistory.map((item) => (
+                        <div key={item.id} className="timeline-item">
+                          <StagePill stage={item.stage} />
+                          <div>
+                            <strong>{item.changed_by}</strong>
+                            <p>{item.note || 'Không có ghi chú'}</p>
+                            <small>{new Date(item.created_at).toLocaleString('vi-VN')}</small>
+                          </div>
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-state">Chưa có lịch sử chuyển phase.</p>
+                  )}
+                </section>
+              </article>
             </section>
           ) : null}
 
           {activeTab === 'ai-dashboard' ? (
-            <section className="card">
-          <h2>Báo cáo AI</h2>
+            <section className="stack">
+              <div className="metrics-grid">
+                <DashboardCard label="Tổng hồ sơ AI" value={dashboard.totals.initiatives} />
+                <DashboardCard label="Backlog phê duyệt" value={dashboard.totals.approvalBacklog} />
+                <DashboardCard label="Sắp tới deadline" value={dashboard.totals.nearingDeadline} />
+              </div>
 
-          <div className="kpi-grid">
-            <div className="kpi-card">
-              <strong>{aiDashboard.kpi.total}</strong>
-              <span>Tổng dự án</span>
-            </div>
-            <div className="kpi-card">
-              <strong>{aiDashboard.kpi.inProgress}</strong>
-              <span>Đang triển khai</span>
-            </div>
-            <div className="kpi-card">
-              <strong>{aiDashboard.kpi.completed}</strong>
-              <span>Hoàn thành</span>
-            </div>
-            <div className="kpi-card">
-              <strong>{aiDashboard.kpi.paused}</strong>
-              <span>Tạm dừng</span>
-            </div>
-          </div>
-
-          <div className="dashboard-grid">
-            <div className="chart-card">
-              <h3>Biểu đồ theo trạng thái</h3>
-              {aiDashboard.byStatus.length === 0 ? (
-                <p>Chưa có dữ liệu.</p>
-              ) : (
-                aiDashboard.byStatus.map((item) => (
-                  <div key={item.status} className="bar-row">
-                    <span className="bar-label">{item.status}</span>
-                    <div className="bar-track">
-                      <div
-                        className="bar-fill"
-                        style={{ width: `${Math.max(8, (item.total / statusChartMax) * 100)}%` }}
-                      />
-                    </div>
-                    <span className="bar-value">{item.total}</span>
+              <div className="split-panel">
+                <article className="card">
+                  <h2>Phân bổ theo phase</h2>
+                  <div className="bars">
+                    {dashboard.byStage.map((item) => (
+                      <div key={item.stage} className="bar-row">
+                        <span>{item.label}</span>
+                        <div className="bar-track">
+                          <div
+                            className="bar-fill"
+                            style={{
+                              width: `${dashboard.totals.initiatives ? (item.total / dashboard.totals.initiatives) * 100 : 0}%`
+                            }}
+                          />
+                        </div>
+                        <strong>{item.total}</strong>
+                      </div>
+                    ))}
                   </div>
-                ))
-              )}
-            </div>
+                </article>
 
-            <div className="chart-card">
-              <h3>Biểu đồ theo nhân viên</h3>
-              {aiDashboard.byEmployee.length === 0 ? (
-                <p>Chưa có dữ liệu.</p>
-              ) : (
-                aiDashboard.byEmployee.map((item) => (
-                  <div key={item.employee_name} className="bar-row">
-                    <span className="bar-label">{item.employee_name}</span>
-                    <div className="bar-track">
-                      <div
-                        className="bar-fill secondary"
-                        style={{ width: `${Math.max(8, (item.total / employeeChartMax) * 100)}%` }}
-                      />
-                    </div>
-                    <span className="bar-value">{item.total}</span>
+                <article className="card">
+                  <h2>Tỷ lệ Gate Review</h2>
+                  <div className="bars">
+                    {dashboard.byDecision.map((item) => (
+                      <div key={item.gate_decision} className="bar-row">
+                        <span>{item.gate_decision}</span>
+                        <div className="bar-track">
+                          <div
+                            className="bar-fill warm"
+                            style={{
+                              width: `${dashboard.totals.initiatives ? (item.total / dashboard.totals.initiatives) * 100 : 0}%`
+                            }}
+                          />
+                        </div>
+                        <strong>{item.total}</strong>
+                      </div>
+                    ))}
                   </div>
-                ))
-              )}
-            </div>
-          </div>
+                </article>
+              </div>
+
+              <div className="split-panel">
+                <article className="card">
+                  <h2>Khối lượng theo owner</h2>
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Owner</th>
+                          <th>Số hồ sơ</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dashboard.byOwner.map((item) => (
+                          <tr key={item.owner_name}>
+                            <td>{item.owner_name}</td>
+                            <td>{item.total}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+
+                <article className="card">
+                  <h2>Hồ sơ nearing deadline</h2>
+                  {dashboard.nearingDeadline.length ? (
+                    <div className="timeline">
+                      {dashboard.nearingDeadline.map((item) => (
+                        <div key={item.id} className="timeline-item">
+                          <StagePill stage={item.current_stage} />
+                          <div>
+                            <strong>{item.title}</strong>
+                            <p>Deadline: {formatDate(item.target_deadline)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="empty-state">Không có hồ sơ nào sát deadline trong 14 ngày tới.</p>
+                  )}
+                </article>
+              </div>
             </section>
           ) : null}
         </main>

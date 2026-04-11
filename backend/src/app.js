@@ -5,7 +5,7 @@ import { config } from './config.js';
 import taskRoutes from './routes/tasks.js';
 import reportRoutes from './routes/reports.js';
 import employeeRoutes from './routes/employees.js';
-import aiProjectRoutes from './routes/aiProjects.js';
+import aiInitiativeRoutes from './routes/aiInitiatives.js';
 
 export function createApp() {
   const app = express();
@@ -25,7 +25,7 @@ export function createApp() {
   app.use('/tasks', taskRoutes);
   app.use('/reports', reportRoutes);
   app.use('/employees', employeeRoutes);
-  app.use('/ai-projects', aiProjectRoutes);
+  app.use('/ai-initiatives', aiInitiativeRoutes);
 
   app.use((err, _req, res, _next) => {
     // Keep errors concise for clients while logging full context on server

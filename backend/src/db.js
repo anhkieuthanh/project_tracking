@@ -12,31 +12,162 @@ export async function initDb() {
     CREATE TABLE IF NOT EXISTS employees (
       id SERIAL PRIMARY KEY,
       name VARCHAR(150) NOT NULL UNIQUE,
+      role VARCHAR(80) NOT NULL DEFAULT 'Thành viên',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS ai_projects (
+    ALTER TABLE employees
+    ADD COLUMN IF NOT EXISTS role VARCHAR(80) NOT NULL DEFAULT 'Thành viên'
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ai_initiatives (
       id SERIAL PRIMARY KEY,
-      received_date DATE NOT NULL,
+      title VARCHAR(255) NOT NULL,
+      department VARCHAR(150) NOT NULL,
       proposer_name VARCHAR(150) NOT NULL,
-      description TEXT NOT NULL,
-      status VARCHAR(32) NOT NULL DEFAULT 'Đề xuất'
-        CHECK (status IN ('Đề xuất', 'Đã duyệt', 'Đang triển khai', 'Hoàn thành', 'Tạm dừng')),
-      estimated_days INTEGER,
-      actual_days INTEGER,
-      start_date DATE,
-      target_end_date DATE,
-      actual_end_date DATE,
-      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE RESTRICT,
+      owner_employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+      requested_at DATE NOT NULL,
+      target_deadline DATE,
+      priority VARCHAR(20) NOT NULL DEFAULT 'Trung bình'
+        CHECK (priority IN ('Cao', 'Trung bình', 'Thấp')),
+      current_stage VARCHAR(20) NOT NULL DEFAULT 'request'
+        CHECK (current_stage IN ('request', 'feasibility', 'design', 'delivery', 'approval', 'operations', 'no_go')),
+      gate_decision VARCHAR(20)
+        CHECK (gate_decision IS NULL OR gate_decision IN ('Go', 'Conditional Go', 'No-Go')),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      CHECK (estimated_days IS NULL OR estimated_days >= 0),
-      CHECK (actual_days IS NULL OR actual_days >= 0)
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS request_forms (
+      initiative_id INTEGER PRIMARY KEY REFERENCES ai_initiatives(id) ON DELETE CASCADE,
+      problem_statement TEXT NOT NULL,
+      objective TEXT NOT NULL,
+      success_kpi TEXT NOT NULL,
+      end_users TEXT NOT NULL,
+      usage_frequency TEXT NOT NULL,
+      time_budget_constraints TEXT NOT NULL,
+      available_data_status VARCHAR(20) NOT NULL
+        CHECK (available_data_status IN ('Có', 'Không', 'Một phần')),
+      available_data_details TEXT NOT NULL DEFAULT '',
+      desired_deadline DATE,
+      budget_estimate TEXT NOT NULL DEFAULT '',
+      pain_points TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feasibility_reviews (
+      initiative_id INTEGER PRIMARY KEY REFERENCES ai_initiatives(id) ON DELETE CASCADE,
+      data_score INTEGER CHECK (data_score BETWEEN 1 AND 5),
+      technical_score INTEGER CHECK (technical_score BETWEEN 1 AND 5),
+      business_score INTEGER CHECK (business_score BETWEEN 1 AND 5),
+      compliance_score INTEGER CHECK (compliance_score BETWEEN 1 AND 5),
+      data_summary TEXT NOT NULL DEFAULT '',
+      technical_summary TEXT NOT NULL DEFAULT '',
+      business_summary TEXT NOT NULL DEFAULT '',
+      compliance_summary TEXT NOT NULL DEFAULT '',
+      decision VARCHAR(20)
+        CHECK (decision IS NULL OR decision IN ('Go', 'Conditional Go', 'No-Go')),
+      conditional_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+      reviewed_by TEXT NOT NULL DEFAULT '',
+      reviewed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS solution_designs (
+      initiative_id INTEGER PRIMARY KEY REFERENCES ai_initiatives(id) ON DELETE CASCADE,
+      solution_option VARCHAR(20)
+        CHECK (solution_option IS NULL OR solution_option IN ('Build', 'Buy', 'Fine-tune', 'RAG', 'API / Third-party')),
+      architecture_summary TEXT NOT NULL DEFAULT '',
+      integration_requirements TEXT NOT NULL DEFAULT '',
+      security_requirements TEXT NOT NULL DEFAULT '',
+      monitoring_plan TEXT NOT NULL DEFAULT '',
+      milestone_plan TEXT NOT NULL DEFAULT '',
+      staffing_plan TEXT NOT NULL DEFAULT '',
+      risks_and_mitigations TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS delivery_cycles (
+      initiative_id INTEGER PRIMARY KEY REFERENCES ai_initiatives(id) ON DELETE CASCADE,
+      poc_status VARCHAR(20) NOT NULL DEFAULT 'Chưa bắt đầu'
+        CHECK (poc_status IN ('Chưa bắt đầu', 'Đang thực hiện', 'Hoàn thành', 'Tạm dừng')),
+      model_test_status VARCHAR(20) NOT NULL DEFAULT 'Chưa bắt đầu'
+        CHECK (model_test_status IN ('Chưa bắt đầu', 'Đang thực hiện', 'Hoàn thành', 'Tạm dừng')),
+      uat_status VARCHAR(20) NOT NULL DEFAULT 'Chưa bắt đầu'
+        CHECK (uat_status IN ('Chưa bắt đầu', 'Đang thực hiện', 'Hoàn thành', 'Tạm dừng')),
+      security_test_status VARCHAR(20) NOT NULL DEFAULT 'Chưa bắt đầu'
+        CHECK (security_test_status IN ('Chưa bắt đầu', 'Đang thực hiện', 'Hoàn thành', 'Tạm dừng')),
+      model_card_status VARCHAR(20) NOT NULL DEFAULT 'Chưa bắt đầu'
+        CHECK (model_card_status IN ('Chưa bắt đầu', 'Đang thực hiện', 'Hoàn thành', 'Tạm dừng')),
+      performance_metrics TEXT NOT NULL DEFAULT '',
+      pilot_feedback TEXT NOT NULL DEFAULT '',
+      delivery_notes TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS approval_records (
+      initiative_id INTEGER PRIMARY KEY REFERENCES ai_initiatives(id) ON DELETE CASCADE,
+      governance_approved BOOLEAN NOT NULL DEFAULT FALSE,
+      tech_approved BOOLEAN NOT NULL DEFAULT FALSE,
+      legal_approved BOOLEAN NOT NULL DEFAULT FALSE,
+      business_approved BOOLEAN NOT NULL DEFAULT FALSE,
+      checklist JSONB NOT NULL DEFAULT '{"performance":false,"security":false,"documentation":false,"rollback":false,"monitoring":false,"training":false,"sla":false,"budget":false,"incident":false}'::jsonb,
+      ready_for_go_live BOOLEAN NOT NULL DEFAULT FALSE,
+      approval_notes TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS operations_records (
+      initiative_id INTEGER PRIMARY KEY REFERENCES ai_initiatives(id) ON DELETE CASCADE,
+      rollout_strategy VARCHAR(20)
+        CHECK (rollout_strategy IS NULL OR rollout_strategy IN ('Shadow Mode', 'Canary Release', 'Blue-Green', 'Feature Flag')),
+      sla_slo TEXT NOT NULL DEFAULT '',
+      alerting_setup TEXT NOT NULL DEFAULT '',
+      kpi_impact TEXT NOT NULL DEFAULT '',
+      incident_log TEXT NOT NULL DEFAULT '',
+      continuous_improvement TEXT NOT NULL DEFAULT '',
+      adoption_plan TEXT NOT NULL DEFAULT '',
+      operational_notes TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS initiative_stage_history (
+      id SERIAL PRIMARY KEY,
+      initiative_id INTEGER NOT NULL REFERENCES ai_initiatives(id) ON DELETE CASCADE,
+      stage VARCHAR(20) NOT NULL
+        CHECK (stage IN ('request', 'feasibility', 'design', 'delivery', 'approval', 'operations', 'no_go')),
+      changed_by TEXT NOT NULL DEFAULT 'system',
+      note TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await pool.query(`DROP TABLE IF EXISTS ai_projects CASCADE`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tasks (
