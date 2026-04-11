@@ -26,6 +26,7 @@ export async function initDb() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS ai_initiatives (
       id SERIAL PRIMARY KEY,
+      code VARCHAR(16) UNIQUE,
       title VARCHAR(255) NOT NULL,
       department VARCHAR(150) NOT NULL,
       proposer_name VARCHAR(150) NOT NULL,
@@ -44,6 +45,11 @@ export async function initDb() {
   `);
 
   await pool.query(`
+    ALTER TABLE ai_initiatives
+    ADD COLUMN IF NOT EXISTS code VARCHAR(16)
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS request_forms (
       initiative_id INTEGER PRIMARY KEY REFERENCES ai_initiatives(id) ON DELETE CASCADE,
       problem_statement TEXT NOT NULL,
@@ -56,12 +62,18 @@ export async function initDb() {
         CHECK (available_data_status IN ('Có', 'Không', 'Một phần')),
       available_data_details TEXT NOT NULL DEFAULT '',
       desired_deadline DATE,
+      expected_completion_date DATE,
       budget_estimate TEXT NOT NULL DEFAULT '',
       pain_points TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+  `);
+
+  await pool.query(`
+    ALTER TABLE request_forms
+    ADD COLUMN IF NOT EXISTS expected_completion_date DATE
   `);
 
   await pool.query(`
@@ -168,6 +180,16 @@ export async function initDb() {
   `);
 
   await pool.query(`DROP TABLE IF EXISTS ai_projects CASCADE`);
+
+  await pool.query(`
+    UPDATE ai_initiatives
+    SET code = CONCAT('HLAI', LPAD(id::text, 4, '0'))
+    WHERE code IS NULL
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS ai_initiatives_code_key ON ai_initiatives(code)
+  `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tasks (

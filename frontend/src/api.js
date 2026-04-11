@@ -35,6 +35,10 @@ export async function getTasks() {
   return jsonFetch('/tasks', { headers: {} });
 }
 
+export async function getTaskCategories() {
+  return jsonFetch('/tasks/categories', { headers: {} });
+}
+
 export async function createTask(payload) {
   return jsonFetch('/tasks', {
     method: 'POST',
@@ -64,6 +68,10 @@ export async function getReports() {
 
 export async function getReportById(id) {
   return jsonFetch(`/reports/${id}`, { headers: {} });
+}
+
+export function getReportPdfUrl(id) {
+  return apiPath(`/reports/${id}/pdf`);
 }
 
 export async function getEmployees() {

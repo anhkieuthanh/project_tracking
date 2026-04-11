@@ -28,6 +28,21 @@ function normalizeOptionalDate(value) {
   return value ? value : null;
 }
 
+async function generateNextInitiativeCode(client) {
+  const result = await client.query(
+    `SELECT code
+     FROM ai_initiatives
+     WHERE code ~ '^HLAI[0-9]{4,}$'
+     ORDER BY LENGTH(code) DESC, code DESC
+     LIMIT 1`
+  );
+
+  const lastCode = result.rows[0]?.code;
+  const lastNumber = lastCode ? Number(lastCode.replace(/^HLAI/, '')) : 0;
+  const nextNumber = lastNumber + 1;
+  return `HLAI${String(nextNumber).padStart(4, '0')}`;
+}
+
 function normalizeConditionalItems(value) {
   if (!Array.isArray(value)) {
     return [];
@@ -90,7 +105,7 @@ function gateToStage(decision) {
 
 async function getInitiativeBase(client, initiativeId) {
   const result = await client.query(
-    `SELECT i.id, i.title, i.department, i.proposer_name, i.owner_employee_id,
+    `SELECT i.id, i.code, i.title, i.department, i.proposer_name, i.owner_employee_id,
             i.requested_at, i.target_deadline, i.priority, i.current_stage, i.gate_decision,
             i.created_at, i.updated_at, e.name AS owner_name, e.role AS owner_role
      FROM ai_initiatives i
@@ -191,39 +206,27 @@ function assertCanProceed(initiative, stages) {
 
 router.get('/', async (req, res, next) => {
   try {
-    const { stage, priority, ownerEmployeeId, gateDecision, requestedFrom, requestedTo } = req.query;
+    const { code, priority, proposerName } = req.query;
     const values = [];
     const conditions = [];
 
-    if (stage) {
-      values.push(stage);
-      conditions.push(`i.current_stage = $${values.length}`);
+    if (code) {
+      values.push(`%${String(code).trim()}%`);
+      conditions.push(`i.code ILIKE $${values.length}`);
     }
     if (priority) {
       values.push(priority);
       conditions.push(`i.priority = $${values.length}`);
     }
-    if (ownerEmployeeId) {
-      values.push(Number(ownerEmployeeId));
-      conditions.push(`i.owner_employee_id = $${values.length}`);
-    }
-    if (gateDecision) {
-      values.push(gateDecision);
-      conditions.push(`i.gate_decision = $${values.length}`);
-    }
-    if (requestedFrom) {
-      values.push(requestedFrom);
-      conditions.push(`i.requested_at >= $${values.length}`);
-    }
-    if (requestedTo) {
-      values.push(requestedTo);
-      conditions.push(`i.requested_at <= $${values.length}`);
+    if (proposerName) {
+      values.push(`%${String(proposerName).trim()}%`);
+      conditions.push(`i.proposer_name ILIKE $${values.length}`);
     }
 
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const result = await pool.query(
-      `SELECT i.id, i.title, i.department, i.proposer_name, i.owner_employee_id,
+      `SELECT i.id, i.code, i.title, i.department, i.proposer_name, i.owner_employee_id,
               i.requested_at, i.target_deadline, i.priority, i.current_stage, i.gate_decision,
               i.created_at, i.updated_at, e.name AS owner_name, e.role AS owner_role,
               a.ready_for_go_live,
@@ -257,26 +260,23 @@ router.post('/', async (req, res, next) => {
     }
 
     await client.query('BEGIN');
-    const owner = await ensureEmployee(client, {
-      employeeId: req.body.ownerEmployeeId,
-      employeeName: req.body.ownerEmployeeName,
-      employeeRole: req.body.ownerEmployeeRole
-    });
+    const code = await generateNextInitiativeCode(client);
 
     const initiativeInsert = await client.query(
       `INSERT INTO ai_initiatives (
-         title, department, proposer_name, owner_employee_id,
+         code, title, department, proposer_name, owner_employee_id,
          requested_at, target_deadline, priority, current_stage
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'request')
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'request')
        RETURNING id`,
       [
+        code,
         req.body.title.trim(),
         req.body.department.trim(),
         req.body.proposerName.trim(),
-        owner.id,
+        null,
         req.body.requestedAt,
-        normalizeOptionalDate(req.body.targetDeadline),
+        normalizeOptionalDate(req.body.expectedCompletionDate),
         req.body.priority
       ]
     );
@@ -287,9 +287,9 @@ router.post('/', async (req, res, next) => {
       `INSERT INTO request_forms (
          initiative_id, problem_statement, objective, success_kpi, end_users,
          usage_frequency, time_budget_constraints, available_data_status,
-         available_data_details, desired_deadline, budget_estimate, pain_points, notes
+         available_data_details, desired_deadline, expected_completion_date, budget_estimate, pain_points, notes
        )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
       [
         initiativeId,
         req.body.problemStatement.trim(),
@@ -297,10 +297,11 @@ router.post('/', async (req, res, next) => {
         req.body.successKpi.trim(),
         req.body.endUsers.trim(),
         req.body.usageFrequency.trim(),
-        req.body.timeBudgetConstraints.trim(),
+        '',
         req.body.availableDataStatus,
         req.body.availableDataDetails?.trim() || '',
-        normalizeOptionalDate(req.body.desiredDeadline),
+        null,
+        normalizeOptionalDate(req.body.expectedCompletionDate),
         req.body.budgetEstimate?.trim() || '',
         req.body.painPoints?.trim() || '',
         req.body.notes?.trim() || ''
@@ -314,12 +315,6 @@ router.post('/', async (req, res, next) => {
     res.status(201).json(detail);
   } catch (error) {
     await client.query('ROLLBACK');
-    if (error.message === 'NOT_FOUND_EMPLOYEE') {
-      return res.status(404).json({ error: 'Không tìm thấy người phụ trách.' });
-    }
-    if (error.message === 'INVALID_EMPLOYEE') {
-      return res.status(400).json({ error: 'Người phụ trách không hợp lệ.' });
-    }
     next(error);
   } finally {
     client.release();
@@ -328,7 +323,7 @@ router.post('/', async (req, res, next) => {
 
 router.get('/dashboard/summary', async (_req, res, next) => {
   try {
-    const [stages, decisions, approvals, deadlines, owners] = await Promise.all([
+    const [stages, decisions, approvals, deadlines, proposers] = await Promise.all([
       pool.query(
         `SELECT current_stage, COUNT(*)::int AS total
          FROM ai_initiatives
@@ -361,11 +356,10 @@ router.get('/dashboard/summary', async (_req, res, next) => {
          ORDER BY target_deadline ASC, id ASC`
       ),
       pool.query(
-        `SELECT COALESCE(e.name, 'Chưa phân công') AS owner_name, COUNT(*)::int AS total
-         FROM ai_initiatives i
-         LEFT JOIN employees e ON e.id = i.owner_employee_id
-         GROUP BY COALESCE(e.name, 'Chưa phân công')
-         ORDER BY total DESC, owner_name ASC`
+        `SELECT proposer_name, COUNT(*)::int AS total
+         FROM ai_initiatives
+         GROUP BY proposer_name
+         ORDER BY total DESC, proposer_name ASC`
       )
     ]);
 
@@ -381,7 +375,7 @@ router.get('/dashboard/summary', async (_req, res, next) => {
         total: row.total
       })),
       byDecision: decisions.rows,
-      byOwner: owners.rows,
+      byProposer: proposers.rows,
       nearingDeadline: deadlines.rows
     });
   } catch (error) {
@@ -421,30 +415,22 @@ router.put('/:id', async (req, res, next) => {
 
     await client.query('BEGIN');
     await requireInitiative(client, initiativeId);
-    const owner = await ensureEmployee(client, {
-      employeeId: req.body.ownerEmployeeId,
-      employeeName: req.body.ownerEmployeeName,
-      employeeRole: req.body.ownerEmployeeRole
-    });
-
     await client.query(
       `UPDATE ai_initiatives
        SET title = $1,
            department = $2,
            proposer_name = $3,
-           owner_employee_id = $4,
-           requested_at = $5,
-           target_deadline = $6,
-           priority = $7,
+           requested_at = $4,
+           target_deadline = $5,
+           priority = $6,
            updated_at = NOW()
-       WHERE id = $8`,
+       WHERE id = $7`,
       [
         req.body.title.trim(),
         req.body.department.trim(),
         req.body.proposerName.trim(),
-        owner.id,
         req.body.requestedAt,
-        normalizeOptionalDate(req.body.targetDeadline),
+        normalizeOptionalDate(req.body.expectedCompletionDate),
         req.body.priority,
         initiativeId
       ]
@@ -461,21 +447,23 @@ router.put('/:id', async (req, res, next) => {
            available_data_status = $7,
            available_data_details = $8,
            desired_deadline = $9,
-           budget_estimate = $10,
-           pain_points = $11,
-           notes = $12,
+           expected_completion_date = $10,
+           budget_estimate = $11,
+           pain_points = $12,
+           notes = $13,
            updated_at = NOW()
-       WHERE initiative_id = $13`,
+       WHERE initiative_id = $14`,
       [
         req.body.problemStatement.trim(),
         req.body.objective.trim(),
         req.body.successKpi.trim(),
         req.body.endUsers.trim(),
         req.body.usageFrequency.trim(),
-        req.body.timeBudgetConstraints.trim(),
+        '',
         req.body.availableDataStatus,
         req.body.availableDataDetails?.trim() || '',
-        normalizeOptionalDate(req.body.desiredDeadline),
+        null,
+        normalizeOptionalDate(req.body.expectedCompletionDate),
         req.body.budgetEstimate?.trim() || '',
         req.body.painPoints?.trim() || '',
         req.body.notes?.trim() || '',
@@ -490,12 +478,6 @@ router.put('/:id', async (req, res, next) => {
     await client.query('ROLLBACK');
     if (error.message === 'NOT_FOUND_INITIATIVE') {
       return res.status(404).json({ error: 'Không tìm thấy hồ sơ AI.' });
-    }
-    if (error.message === 'NOT_FOUND_EMPLOYEE') {
-      return res.status(404).json({ error: 'Không tìm thấy người phụ trách.' });
-    }
-    if (error.message === 'INVALID_EMPLOYEE') {
-      return res.status(400).json({ error: 'Người phụ trách không hợp lệ.' });
     }
     next(error);
   } finally {
@@ -513,6 +495,7 @@ router.get('/:id/request-form', async (req, res, next) => {
     res.json({
       initiative: {
         id: detail.id,
+        code: detail.code,
         title: detail.title,
         department: detail.department,
         proposer_name: detail.proposer_name,
@@ -547,30 +530,22 @@ router.put('/:id/request-form', async (req, res, next) => {
 
     await client.query('BEGIN');
     await requireInitiative(client, initiativeId);
-    const owner = await ensureEmployee(client, {
-      employeeId: req.body.ownerEmployeeId,
-      employeeName: req.body.ownerEmployeeName,
-      employeeRole: req.body.ownerEmployeeRole
-    });
-
     await client.query(
       `UPDATE ai_initiatives
        SET title = $1,
            department = $2,
            proposer_name = $3,
-           owner_employee_id = $4,
-           requested_at = $5,
-           target_deadline = $6,
-           priority = $7,
+           requested_at = $4,
+           target_deadline = $5,
+           priority = $6,
            updated_at = NOW()
-       WHERE id = $8`,
+       WHERE id = $7`,
       [
         req.body.title.trim(),
         req.body.department.trim(),
         req.body.proposerName.trim(),
-        owner.id,
         req.body.requestedAt,
-        normalizeOptionalDate(req.body.targetDeadline),
+        normalizeOptionalDate(req.body.expectedCompletionDate),
         req.body.priority,
         initiativeId
       ]
@@ -587,21 +562,23 @@ router.put('/:id/request-form', async (req, res, next) => {
            available_data_status = $7,
            available_data_details = $8,
            desired_deadline = $9,
-           budget_estimate = $10,
-           pain_points = $11,
-           notes = $12,
+           expected_completion_date = $10,
+           budget_estimate = $11,
+           pain_points = $12,
+           notes = $13,
            updated_at = NOW()
-       WHERE initiative_id = $13`,
+       WHERE initiative_id = $14`,
       [
         req.body.problemStatement.trim(),
         req.body.objective.trim(),
         req.body.successKpi.trim(),
         req.body.endUsers.trim(),
         req.body.usageFrequency.trim(),
-        req.body.timeBudgetConstraints.trim(),
+        '',
         req.body.availableDataStatus,
         req.body.availableDataDetails?.trim() || '',
-        normalizeOptionalDate(req.body.desiredDeadline),
+        null,
+        normalizeOptionalDate(req.body.expectedCompletionDate),
         req.body.budgetEstimate?.trim() || '',
         req.body.painPoints?.trim() || '',
         req.body.notes?.trim() || '',
@@ -614,6 +591,7 @@ router.put('/:id/request-form', async (req, res, next) => {
     res.json({
       initiative: {
         id: detail.id,
+        code: detail.code,
         title: detail.title,
         department: detail.department,
         proposer_name: detail.proposer_name,
@@ -632,12 +610,6 @@ router.put('/:id/request-form', async (req, res, next) => {
     await client.query('ROLLBACK');
     if (error.message === 'NOT_FOUND_INITIATIVE') {
       return res.status(404).json({ error: 'Không tìm thấy hồ sơ AI.' });
-    }
-    if (error.message === 'NOT_FOUND_EMPLOYEE') {
-      return res.status(404).json({ error: 'Không tìm thấy người phụ trách.' });
-    }
-    if (error.message === 'INVALID_EMPLOYEE') {
-      return res.status(400).json({ error: 'Người phụ trách không hợp lệ.' });
     }
     next(error);
   } finally {

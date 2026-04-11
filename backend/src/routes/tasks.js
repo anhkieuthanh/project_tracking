@@ -17,6 +17,24 @@ router.get('/', async (_req, res, next) => {
   }
 });
 
+router.get('/categories', async (_req, res, next) => {
+  try {
+    const result = await pool.query(
+      `SELECT DISTINCT category
+       FROM (
+         SELECT category FROM tasks
+         UNION
+         SELECT category FROM task_history
+       ) categories
+       WHERE category IS NOT NULL AND TRIM(category) <> ''
+       ORDER BY category ASC`
+    );
+    res.json(result.rows.map((row) => row.category));
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.post('/', async (req, res, next) => {
   try {
     const validation = validateTaskInput(req.body);

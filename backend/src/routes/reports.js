@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import path from 'path';
 import { pool } from '../db.js';
+import { createPdfReport } from '../services/pdfService.js';
 
 const router = Router();
 
@@ -175,6 +177,78 @@ router.get('/:id', async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+});
+
+router.get('/:id/pdf', async (req, res, next) => {
+  const client = await pool.connect();
+  try {
+    const reportId = Number(req.params.id);
+    if (Number.isNaN(reportId)) {
+      return res.status(400).json({ error: 'ID báo cáo không hợp lệ.' });
+    }
+
+    const reportResult = await client.query(
+      `SELECT id, week_label, exported_at, total_tasks, completed_tasks,
+              in_progress_tasks, blocked_tasks, todo_tasks,
+              high_priority_tasks, medium_priority_tasks, low_priority_tasks,
+              pdf_filename
+       FROM weekly_reports
+       WHERE id = $1`,
+      [reportId]
+    );
+
+    if (!reportResult.rowCount) {
+      return res.status(404).json({ error: 'Không tìm thấy báo cáo.' });
+    }
+
+    const report = reportResult.rows[0];
+    const tasksResult = await client.query(
+      `SELECT task_id, title, completed_date, priority, status, category, note
+       FROM task_history
+       WHERE report_id = $1
+       ORDER BY COALESCE(completed_date, CURRENT_DATE) ASC, id ASC`,
+      [reportId]
+    );
+
+    let filename = report.pdf_filename;
+    if (!filename) {
+      const stats = {
+        total: report.total_tasks,
+        done: report.completed_tasks,
+        inProgress: report.in_progress_tasks,
+        blocked: report.blocked_tasks,
+        todo: report.todo_tasks,
+        high: report.high_priority_tasks,
+        medium: report.medium_priority_tasks,
+        low: report.low_priority_tasks
+      };
+
+      const generated = await createPdfReport({
+        weekLabel: report.week_label,
+        tasks: tasksResult.rows,
+        stats
+      });
+
+      filename = generated.filename;
+      await client.query(
+        `UPDATE weekly_reports
+         SET pdf_filename = $1
+         WHERE id = $2`,
+        [filename, reportId]
+      );
+    }
+
+    return res.sendFile(path.resolve(process.cwd(), 'uploads/reports', filename), {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${filename}"`
+      }
+    });
+  } catch (error) {
+    next(error);
+  } finally {
+    client.release();
   }
 });
 

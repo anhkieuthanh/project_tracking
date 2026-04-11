@@ -90,7 +90,6 @@ export function validateRequestFormInput(payload) {
   validateRequiredString(errors, payload.successKpi, 'KPI đo lường');
   validateRequiredString(errors, payload.endUsers, 'Người dùng cuối');
   validateRequiredString(errors, payload.usageFrequency, 'Tần suất sử dụng');
-  validateRequiredString(errors, payload.timeBudgetConstraints, 'Ràng buộc thời gian và ngân sách');
 
   if (!payload.requestedAt || Number.isNaN(Date.parse(payload.requestedAt))) {
     errors.push('Ngày đề xuất không hợp lệ.');
@@ -104,8 +103,7 @@ export function validateRequestFormInput(payload) {
     errors.push('Trạng thái dữ liệu sẵn có không hợp lệ.');
   }
 
-  validateOptionalDate(errors, payload.targetDeadline, 'Thời hạn mong muốn');
-  validateOptionalDate(errors, payload.desiredDeadline, 'Deadline ARF');
+  validateOptionalDate(errors, payload.expectedCompletionDate, 'Thời gian hoàn thành dự kiến');
 
   return {
     ok: errors.length === 0,

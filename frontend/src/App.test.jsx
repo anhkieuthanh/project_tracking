@@ -7,8 +7,8 @@ describe('App', () => {
     global.fetch = vi.fn((url) => {
       if (
         url === '/project-tracking/_api/tasks' ||
+        url === '/project-tracking/_api/tasks/categories' ||
         url === '/project-tracking/_api/reports' ||
-        url === '/project-tracking/_api/employees' ||
         url === '/project-tracking/_api/ai-initiatives' ||
         url === '/project-tracking/_api/ai-initiatives/dashboard/summary'
       ) {
@@ -20,7 +20,7 @@ describe('App', () => {
               totals: { initiatives: 0, approvalBacklog: 0, nearingDeadline: 0 },
               byStage: [],
               byDecision: [],
-              byOwner: [],
+              byProposer: [],
               nearingDeadline: []
             })
           });
@@ -45,19 +45,21 @@ describe('App', () => {
     vi.restoreAllMocks();
   });
 
-  it('renders AI lifecycle title and loads initial tabs', async () => {
+  it('renders grouped menu and loads initial dashboards', async () => {
     render(<App />);
 
     expect(screen.getByRole('heading', { name: 'Website quản lý vòng đời AI doanh nghiệp' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tuần hiện tại' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Home' })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Dashboard' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Công việc tuần hiện tại' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Lịch sử' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Vòng đời AI' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dashboard điều hành' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Danh sách dự án' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tạo dự án mới' })).toBeInTheDocument();
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/tasks', expect.anything());
+      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/tasks/categories', expect.anything());
       expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/reports', expect.anything());
-      expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/employees', expect.anything());
       expect(global.fetch).toHaveBeenCalledWith('/project-tracking/_api/ai-initiatives', expect.anything());
       expect(global.fetch).toHaveBeenCalledWith(
         '/project-tracking/_api/ai-initiatives/dashboard/summary',

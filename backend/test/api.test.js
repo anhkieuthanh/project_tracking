@@ -125,6 +125,12 @@ test('close week moves tasks to history and resets weekly tasks', async () => {
 
   const detail = await request(app).get(`/reports/${exportResponse.body.reportId}`).expect(200);
   assert.equal(detail.body.tasks.length, 2);
+
+  const categories = await request(app).get('/tasks/categories').expect(200);
+  assert.deepEqual(categories.body.sort(), ['Dev', 'Meeting']);
+
+  const pdfResponse = await request(app).get(`/reports/${exportResponse.body.reportId}/pdf`).expect(200);
+  assert.match(pdfResponse.headers['content-type'], /application\/pdf/);
 });
 
 test('AI initiative lifecycle flow works end to end', async () => {
@@ -134,20 +140,16 @@ test('AI initiative lifecycle flow works end to end', async () => {
       title: 'Chatbot nội bộ CSKH',
       department: 'Kinh doanh',
       proposerName: 'Phạm Thu Hà',
-      ownerEmployeeName: 'Nguyễn Văn A',
-      ownerEmployeeRole: 'AI Project Manager',
       requestedAt: '2026-04-09',
-      targetDeadline: '2026-05-15',
+      expectedCompletionDate: '2026-05-15',
       priority: 'Cao',
       problemStatement: 'Nhân viên mất nhiều thời gian trả lời câu hỏi lặp lại.',
       objective: 'Tự động hóa trả lời câu hỏi phổ biến.',
       successKpi: 'Giảm 30% thời gian phản hồi.',
       endUsers: 'Nhân viên CSKH',
       usageFrequency: 'Hàng ngày',
-      timeBudgetConstraints: 'Go-live trong quý 2 với ngân sách cố định.',
       availableDataStatus: 'Một phần',
       availableDataDetails: 'Có FAQ và transcript 6 tháng.',
-      desiredDeadline: '2026-05-10',
       budgetEstimate: '250 triệu',
       painPoints: 'Trả lời thủ công, thiếu nhất quán.',
       notes: 'Ưu tiên cao cho team kinh doanh.'
@@ -155,14 +157,16 @@ test('AI initiative lifecycle flow works end to end', async () => {
     .expect(201);
 
   assert.equal(created.body.current_stage, 'request');
+  assert.equal(created.body.code, 'HLAI0001');
   assert.equal(created.body.requestForm.available_data_status, 'Một phần');
 
   const list = await request(app)
     .get('/ai-initiatives')
-    .query({ priority: 'Cao' })
+    .query({ priority: 'Cao', proposerName: 'Phạm' })
     .expect(200);
   assert.equal(list.body.length, 1);
   assert.equal(list.body[0].stage_label, 'Yêu cầu AI');
+  assert.equal(list.body[0].code, 'HLAI0001');
 
   await request(app)
     .put(`/ai-initiatives/${created.body.id}/feasibility`)
@@ -293,7 +297,7 @@ test('AI initiative lifecycle flow works end to end', async () => {
   assert.equal(dashboard.body.totals.initiatives, 1);
   assert.equal(dashboard.body.totals.approvalBacklog, 0);
   assert.equal(dashboard.body.byStage[0].total, 1);
-  assert.equal(dashboard.body.byOwner[0].owner_name, 'Nguyễn Văn A');
+  assert.equal(dashboard.body.byProposer[0].proposer_name, 'Phạm Thu Hà');
 });
 
 test('No-Go blocks later phases and keeps record queryable', async () => {
@@ -303,19 +307,16 @@ test('No-Go blocks later phases and keeps record queryable', async () => {
       title: 'Dự báo nghỉ việc',
       department: 'Nhân sự',
       proposerName: 'Lê Minh',
-      ownerEmployeeName: 'Trần B',
       requestedAt: '2026-04-11',
-      targetDeadline: '2026-06-01',
+      expectedCompletionDate: '2026-06-01',
       priority: 'Trung bình',
       problemStatement: 'Cần nhận diện nguy cơ nghỉ việc.',
       objective: 'Ưu tiên giữ chân nhân sự chủ chốt.',
       successKpi: 'Giảm turnover 10%.',
       endUsers: 'HRBP',
       usageFrequency: 'Hàng tuần',
-      timeBudgetConstraints: 'Nguồn lực hạn chế.',
       availableDataStatus: 'Không',
       availableDataDetails: 'Dữ liệu phân tán.',
-      desiredDeadline: '2026-06-01',
       budgetEstimate: '100 triệu',
       painPoints: 'Thiếu dữ liệu lịch sử.',
       notes: ''
